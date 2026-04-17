@@ -7,8 +7,10 @@ use App\Models\Jadwal_Latihan;
 use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\Siswa;
+use App\Models\Pelatih;
 use App\Models\Presensi;
 use App\Models\Catatan_Pelatih;
+use App\Models\Performa_Siswa;
 use Carbon\Carbon;
 
 class PelatihController extends Controller
@@ -120,18 +122,157 @@ public function Rekap_Absensi(Request $request)
     ]);
 }
 
-public function Catatan_Pelatih()
+public function Performa_Siswa(Request $request, $id)
 {
-    $data = Catatan_Pelatih::with(['siswa', 'pelatih'])
-        ->latest()
-        ->get();
+    // ambil user login
+    $user = auth('sanctum')->user();
+
+    // ambil pelatih berdasarkan user login
+    $pelatih = Pelatih::where('user_id', $user->id)->first();
+
+    if (!$pelatih) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Data pelatih tidak ditemukan'
+        ], 404);
+    }
+
+    // 🔥 batasi akses hanya milik pelatih
+    $jadwal = Jadwal_Latihan::with('siswa')
+        ->where('id_jadwal', $id)
+        ->where('id_pelatih', $pelatih->id_pelatih)
+        ->first();
+
+    if (!$jadwal) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Jadwal tidak ditemukan atau bukan milik pelatih'
+        ], 404);
+    }
 
     return response()->json([
         'status' => true,
-        'message' => 'Data catatan pelatih',
-        'data' => $data
+        'jadwal' => $jadwal,
     ]);
 }
+
+
+public function Input_Performa_Siswa(Request $request, $id)
+{
+    $user = auth('sanctum')->user();
+
+    $pelatih = Pelatih::where('user_id', $user->id)->first();
+
+    if (!$pelatih) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Pelatih tidak ditemukan'
+        ], 404);
+    }
+
+
+    // 🔥 WAJIB: load relasi siswa
+    $jadwal = Jadwal_Latihan::with('siswa')
+        ->where('id_jadwal', $id)
+        ->where('id_pelatih', $pelatih->id_pelatih)
+        ->first();
+
+    if (!$jadwal) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Jadwal tidak ditemukan atau bukan milik pelatih'
+        ], 404);
+    }
+
+    if (!$request->has('data')) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Masukan Data tidak boleh kosong'
+        ], 400);
+    }
+
+    $tanggal = now();
+
+    foreach ($request->data as $item) {
+
+        // 🔥 cek siswa di jadwal (lebih aman pakai contains)
+        $siswa = $jadwal->siswa->where('id_siswa', $item['id_siswa'])->first();
+
+        if (!$siswa) {
+            continue;
+        }
+
+        Performa_Siswa::create([
+            'id_siswa' => $item['id_siswa'],
+            'tanggal_penilaian' => $tanggal,
+            'bulan' => $tanggal->format('m'),
+            'tahun' => $tanggal->format('Y'),
+            'kategori' => 'U-' . $siswa->umur,
+            'dribbling' => $item['dribbling'],
+            'passing' => $item['passing'],
+            'shooting' => $item['shooting'],
+        ]);
+    }
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Performa berhasil disimpan'
+    ]);
+}
+
+public function Update_Performa_Siswa(Request $request, $id_jadwal)
+{
+    $user = auth('sanctum')->user();
+
+    $pelatih = Pelatih::where('user_id', $user->id)->first();
+
+    if (!$pelatih) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Data pelatih tidak ditemukan'
+        ], 404);
+    }
+
+    // ambil jadwal + siswa yang ikut jadwal itu
+    $jadwal = Jadwal_Latihan::with('siswa')
+        ->where('id_jadwal', $id_jadwal)
+        ->where('id_pelatih', $pelatih->id_pelatih)
+        ->first();
+
+    if (!$jadwal) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Jadwal tidak ditemukan'
+        ], 404);
+    }
+
+    foreach ($request->data as $item) {
+
+        // pastikan siswa memang ada di jadwal ini
+        $cekSiswa = $jadwal->siswa->where('id_siswa', $item['id_siswa'])->first();
+
+        if (!$cekSiswa) {
+            continue; // skip kalau bukan siswa di jadwal ini
+        }
+
+       Performa_Siswa::updateOrCreate(
+    [
+        'id_siswa' => $item['id_siswa'],
+    ],
+    [
+        'dribbling' => $item['dribbling'],
+        'passing' => $item['passing'],
+        'shooting' => $item['shooting'],
+    ]
+);
+    }
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Performa berhasil disimpan'
+    ]);
+}
+
 
 public function Catatan_perPelatih($id_pelatih)
 {
