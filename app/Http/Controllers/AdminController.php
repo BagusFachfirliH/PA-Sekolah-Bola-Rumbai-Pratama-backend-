@@ -514,6 +514,98 @@ public function Data_Siswa(Request $request)
     ]);
 }
 
+public function performaperSiswa(Request $request, $id_siswa)
+{
+    $bulan = $request->bulan;
+    $tahun = $request->tahun;
+
+    $query = DB::table('performa_siswa')
+        ->where('id_siswa', $id_siswa);
+
+    // ✅ filter dari tanggal_penilaian
+    if ($bulan) {
+        $query->whereMonth('tanggal_penilaian', $bulan);
+    }
+
+    if ($tahun) {
+        $query->whereYear('tanggal_penilaian', $tahun);
+    }
+
+    $data = $query->selectRaw('
+        COUNT(*) as total_latihan,
+        AVG(dribbling) as rata_dribbling,
+        AVG(passing) as rata_passing,
+        AVG(shooting) as rata_shooting
+    ')->first();
+
+    if (!$data || $data->total_latihan == 0) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Belum ada data performa'
+        ]);
+    }
+
+    return response()->json([
+        'status' => true,
+        'id_siswa' => $id_siswa,
+        'filter' => [
+            'bulan' => $bulan,
+            'tahun' => $tahun
+        ],
+        'data' => $data
+    ]);
+}
+
+public function Rekap_Absensi_PerSiswa(Request $request, $id_siswa)
+{
+    $bulan = $request->bulan ?? now()->month;
+    $tahun = $request->tahun ?? now()->year;
+
+    $siswa = Siswa::find($id_siswa);
+
+    if (!$siswa) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Siswa tidak ditemukan'
+        ], 404);
+    }
+
+    $presensi = $siswa->presensi()
+        ->whereMonth('created_at', $bulan)
+        ->whereYear('created_at', $tahun)
+        ->get();
+
+    $total = $presensi->count();
+
+    $hadir = $presensi->where('status_kehadiran', 'Hadir')->count();
+    $sakit = $presensi->where('status_kehadiran', 'Sakit')->count();
+    $izin  = $presensi->where('status_kehadiran', 'Izin')->count();
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Rekap absensi per siswa berhasil',
+        'id_siswa' => $siswa->id_siswa,
+        'nama_siswa' => $siswa->nama_siswa,
+        'umur' => 'U-' . $siswa->umur,
+
+        'filter' => [
+            'bulan' => $bulan,
+            'tahun' => $tahun
+        ],
+
+        // 🔢 jumlah
+        'hadir' => $hadir,
+        'sakit' => $sakit,
+        'izin'  => $izin,
+        'total' => $total,
+
+        // 📊 persen
+        'persen_hadir' => $total ? round(($hadir / $total) * 100, 1) : 0,
+        'persen_sakit' => $total ? round(($sakit / $total) * 100, 1) : 0,
+        'persen_izin'  => $total ? round(($izin / $total) * 100, 1) : 0,
+    ]);
+}
+
 public function Data_Pelatih(Request $request)
 {
     $pelatih = Pelatih::with('user');
