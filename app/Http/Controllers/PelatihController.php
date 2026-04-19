@@ -11,7 +11,10 @@ use App\Models\Pelatih;
 use App\Models\Presensi;
 use App\Models\Catatan_Pelatih;
 use App\Models\Performa_Siswa;
+use App\Models\Pembayaran;
+use App\Models\BuktiPembayaran;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class PelatihController extends Controller
 {
@@ -392,6 +395,278 @@ public function Hapus_Catatan_Pelatih($id)
         'status' => true,
         'message' => 'Catatan berhasil dihapus'
     ]);
+}
+
+public function FormUploadBuktiPembayaran(Request $request)
+{
+    $kategoriUmur = Siswa::select('umur')
+        ->distinct()
+        ->orderBy('umur')
+        ->pluck('umur')
+        ->map(fn ($umur) => 'U-' . $umur)
+        ->values();
+
+    $siswaQuery = Siswa::select('id_siswa', 'nama_siswa', 'umur', 'status')
+        ->orderBy('nama_siswa');
+
+    if ($request->filled('kategori_umur')) {
+        $umur = $this->extractUmur($request->kategori_umur);
+
+        if (!is_null($umur)) {
+            $siswaQuery->where('umur', $umur);
+        }
+    }
+
+    if ($request->filled('search')) {
+        $siswaQuery->where('nama_siswa', 'like', '%' . $request->search . '%');
+    }
+
+    $siswa = $siswaQuery->get()->map(function ($item) {
+        return [
+            'id_siswa' => $item->id_siswa,
+            'nama_siswa' => $item->nama_siswa,
+            'kategori_umur' => 'U-' . $item->umur,
+            'status' => $item->status,
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Data form upload bukti pembayaran berhasil diambil',
+        'filters' => [
+            'kategori_umur' => $request->kategori_umur,
+            'search' => $request->search,
+        ],
+        'data' => [
+            'kategori_umur' => $kategoriUmur,
+            'jenis_pembayaran' => ['Harian', 'Bulanan'],
+            'siswa' => $siswa,
+        ],
+    ]);
+}
+
+public function Store_Bukti_Pembayaran_Pelatih(Request $request)
+{
+    $validated = $request->validate([
+        'id_siswa' => 'required|exists:siswa,id_siswa',
+        'jenis' => 'required|in:Harian,Bulanan',
+        'tanggal_bukti_bayar' => 'required|date',
+        'bukti_bayar' => 'required|file|mimes:jpg,jpeg,png,pdf|max:4096',
+    ]);
+
+    DB::beginTransaction();
+
+    try {
+        $siswa = Siswa::findOrFail($validated['id_siswa']);
+        $tanggal = Carbon::parse($validated['tanggal_bukti_bayar']);
+        $periode = $validated['jenis'] === 'Harian'
+            ? $tanggal->format('Y-m-d')
+            : $tanggal->format('Y-m');
+
+        $pembayaran = Pembayaran::firstOrCreate(
+            [
+                'id_siswa' => $siswa->id_siswa,
+                'jenis' => $validated['jenis'],
+                'periode' => $periode,
+            ],
+            [
+                'jumlah' => 0,
+                'tanggal_bayar' => $tanggal->toDateString(),
+                'status' => 'Belum',
+            ]
+        );
+
+        if (!$pembayaran->tanggal_bayar) {
+            $pembayaran->update([
+                'tanggal_bayar' => $tanggal->toDateString(),
+            ]);
+        }
+
+        $filePath = $request->file('bukti_bayar')->store('bukti_pembayaran');
+
+        $bukti = BuktiPembayaran::where('id_pembayaran', $pembayaran->id_pembayaran)->first();
+
+        if ($bukti) {
+            if ($bukti->bukti_bayar && Storage::exists($bukti->bukti_bayar)) {
+                Storage::delete($bukti->bukti_bayar);
+            }
+
+            $bukti->update([
+                'id_siswa' => $siswa->id_siswa,
+                'periode' => $periode,
+                'tanggal_bukti_bayar' => $tanggal->toDateString(),
+                'status' => 'Menunggu validasi',
+                'bukti_bayar' => $filePath,
+            ]);
+        } else {
+            $bukti = BuktiPembayaran::create([
+                'id_pembayaran' => $pembayaran->id_pembayaran,
+                'id_siswa' => $siswa->id_siswa,
+                'periode' => $periode,
+                'tanggal_bukti_bayar' => $tanggal->toDateString(),
+                'status' => 'Menunggu validasi',
+                'bukti_bayar' => $filePath,
+            ]);
+        }
+
+        $pembayaran->update([
+            'tanggal_bayar' => $tanggal->toDateString(),
+            'status' => 'Belum',
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bukti pembayaran berhasil diupload',
+            'data' => $bukti->load(['siswa', 'pembayaran']),
+        ], 201);
+    } catch (\Throwable $e) {
+        DB::rollBack();
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Upload bukti pembayaran gagal',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+public function History_Bukti_Pembayaran_Pelatih(Request $request)
+{
+    $query = BuktiPembayaran::with([
+        'siswa:id_siswa,nama_siswa,umur',
+        'pembayaran:id_pembayaran,id_siswa,jenis,status',
+    ]);
+
+    if ($request->filled('kategori_umur')) {
+        $umur = $this->extractUmur($request->kategori_umur);
+
+        if (!is_null($umur)) {
+            $query->whereHas('siswa', function ($siswaQuery) use ($umur) {
+                $siswaQuery->where('umur', $umur);
+            });
+        }
+    }
+
+    if ($request->filled('search')) {
+        $query->whereHas('siswa', function ($siswaQuery) use ($request) {
+            $siswaQuery->where('nama_siswa', 'like', '%' . $request->search . '%');
+        });
+    }
+
+    if ($request->filled('jenis')) {
+        $query->whereHas('pembayaran', function ($pembayaranQuery) use ($request) {
+            $pembayaranQuery->where('jenis', $request->jenis);
+        });
+    }
+
+    $history = $query->orderBy('tanggal_bukti_bayar', 'desc')
+        ->orderBy('id_bukti_pembayaran', 'desc')
+        ->paginate(10)
+        ->through(function ($item) {
+            return [
+                'id_bukti_pembayaran' => $item->id_bukti_pembayaran,
+                'id_pembayaran' => $item->id_pembayaran,
+                'id_siswa' => $item->id_siswa,
+                'nama_siswa' => $item->siswa->nama_siswa ?? null,
+                'kategori_umur' => isset($item->siswa->umur) ? 'U-' . $item->siswa->umur : null,
+                'jenis' => $item->pembayaran->jenis ?? null,
+                'periode' => $item->periode,
+                'tanggal_bukti_bayar' => $item->tanggal_bukti_bayar,
+                'status' => $item->status,
+                'bukti_bayar' => $item->bukti_bayar,
+                'nama_file' => $item->bukti_bayar ? basename($item->bukti_bayar) : null,
+            ];
+        });
+
+    $kategoriUmur = Siswa::select('umur')
+        ->distinct()
+        ->orderBy('umur')
+        ->pluck('umur')
+        ->map(fn ($umur) => 'U-' . $umur)
+        ->values();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'History bukti pembayaran berhasil diambil',
+        'filters' => [
+            'kategori_umur' => $request->kategori_umur,
+            'jenis' => $request->jenis,
+            'search' => $request->search,
+        ],
+        'options' => [
+            'kategori_umur' => $kategoriUmur,
+            'jenis_pembayaran' => ['Harian', 'Bulanan'],
+        ],
+        'data' => $history,
+    ]);
+}
+
+public function Hapus_Bukti_Pembayaran_Pelatih($id)
+{
+    $bukti = BuktiPembayaran::find($id);
+
+    if (!$bukti) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Data bukti pembayaran tidak ditemukan',
+        ], 404);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        if ($bukti->bukti_bayar && Storage::exists($bukti->bukti_bayar)) {
+            Storage::delete($bukti->bukti_bayar);
+        }
+
+        $pembayaran = Pembayaran::find($bukti->id_pembayaran);
+        $bukti->delete();
+
+        if ($pembayaran) {
+            $masihAdaBukti = BuktiPembayaran::where('id_pembayaran', $pembayaran->id_pembayaran)->exists();
+
+            if (!$masihAdaBukti) {
+                $pembayaran->update([
+                    'tanggal_bayar' => null,
+                    'status' => 'Belum',
+                ]);
+            }
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Bukti pembayaran berhasil dihapus',
+        ]);
+    } catch (\Throwable $e) {
+        DB::rollBack();
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal menghapus bukti pembayaran',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+private function extractUmur(?string $kategoriUmur): ?int
+{
+    if (!$kategoriUmur) {
+        return null;
+    }
+
+    if (preg_match('/U-(\d+)/i', $kategoriUmur, $match)) {
+        return (int) $match[1];
+    }
+
+    if (preg_match('/U(\d+)/i', $kategoriUmur, $match)) {
+        return (int) $match[1];
+    }
+
+    return null;
 }
 
 
