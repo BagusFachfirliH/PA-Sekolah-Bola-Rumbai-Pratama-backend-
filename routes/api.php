@@ -52,8 +52,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/file-pendaftaran-siswa/{folder}/{filename}', [AdminController::class, 'lihatfilePendaftaran']);
 
     //SIswa Pendaftaran revisi
-    Route::get('/revisi-pendaftaran/{id_siswa}', [SiswaController::class, 'revisi_pendaftaran']);
-    Route::post('/update-pendaftaran/{id_siswa}', [SiswaController::class, 'update_pendaftaran']);
+    Route::get('/siswa/revisi-pendaftaran/{id_siswa}', [SiswaController::class, 'revisi_pendaftaran']);
+    Route::post('/siswa/update-pendaftaran/{id_siswa}', [SiswaController::class, 'update_pendaftaran']);
     
 
     // Notfikasi
@@ -63,57 +63,74 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     //Pembayaran siswa (Admin)
-    Route::get('/pembayaran-admin', [AdminController::class, 'pembayaran_admin']);
-    Route::get('/bukti-pembayaran-admin/{id_siswa}', [AdminController::class, 'buktipembayaran_admin']);
-    Route::get('/lihat-bukti/{folder}/{file}', [AdminController::class, 'lihatBukti_pembayaran_admin']);
-    Route::post('/bukti/approve/{id}', [AdminController::class, 'Bukti_Diterima']);
-    Route::post('/bukti/reject/{id}', [AdminController::class, 'Bukti_Ditolak']);
-    Route::get('/history-pembayaran', [AdminController::class, 'history_pembayaran']);
+    Route::get('/admin/pembayaran-admin', [AdminController::class, 'pembayaran_admin']);
+    Route::get('/admin/bukti-pembayaran-admin/{id_siswa}', [AdminController::class, 'buktipembayaran_admin']);
+    Route::get('/admin/lihat-bukti/{folder}/{file}', [AdminController::class, 'lihatBukti_pembayaran_admin']);
+    Route::post('/admin/bukti/approve/{id}', [AdminController::class, 'Bukti_Diterima']);
+    Route::post('/admin/bukti/reject/{id}', [AdminController::class, 'Bukti_Ditolak']);
+    Route::get('/admin/history-pembayaran', [AdminController::class, 'history_pembayaran']);
 
 
     //Pembayaran siswa (Siswa)
-    Route::get('/upload-bukti/{id_pembayaran}/{id_siswa}', [SiswaController::class, 'Upload_Bukti_Pembayaran']);
-    Route::post('/upload-bukti/{id_pembayaran}', [SiswaController::class, 'Store_Bukti_Pembayaran']);
+    Route::get('/admin/upload-bukti/{id_pembayaran}/{id_siswa}', [SiswaController::class, 'Upload_Bukti_Pembayaran']);
+    Route::post('/admin/upload-bukti/{id_pembayaran}', [SiswaController::class, 'Store_Bukti_Pembayaran']);
 
     //Data Siswa (Admin)
-    Route::get('/data-siswa', [AdminController::class, 'Data_Siswa']);
-    Route::get('/performa-siswa/{id_siswa}', [AdminController::class, 'performaperSiswa']);
-    Route::get('/kehadiran-siswa/{id_siswa}', [AdminController::class, 'Rekap_Absensi_PerSiswa']);
+    Route::get('/admin/data-siswa', [AdminController::class, 'Data_Siswa']);
+    Route::get('/admin/performa-siswa/{id_siswa}', [AdminController::class, 'performaperSiswa']);
+    Route::get('/admin/kehadiran-siswa/{id_siswa}', [AdminController::class, 'Rekap_Absensi_PerSiswa']);
     
 
     //Data Pelatih (Admin)
-    Route::get('/data-pelatih', [AdminController::class, 'Data_Pelatih']);
-    Route::post('/tambah-pelatih', [AdminController::class, 'Tambah_Pelatih']);
-    Route::put('/edit-pelatih/{id}', [AdminController::class, 'Update_Pelatih']);
-    Route::delete('/hapus-pelatih/{id}', [AdminController::class, 'Hapus_Pelatih']);
+    Route::get('/admin/data-pelatih', [AdminController::class, 'Data_Pelatih']);
+    Route::post('/admin/tambah-pelatih', [AdminController::class, 'Tambah_Pelatih']);
+    Route::put('/admin/edit-pelatih/{id}', [AdminController::class, 'Update_Pelatih']);
+    Route::delete('/admin/hapus-pelatih/{id}', [AdminController::class, 'Hapus_Pelatih']);
 
     // Jadwal Latihan (Admin)
-    Route::get('/jadwal-latihan', [AdminController::class, 'Jadwallatihan_Siswa']);
-    Route::get('/jadwal-latihan/{id}', [AdminController::class, 'JadwalperPelatih']);
-    Route::post('/tambah-jadwal', [AdminController::class, 'Tambah_Jadwal']);
-    Route::put('/jadwal-latihan/{id}', [AdminController::class, 'Update_Jadwal']);
-    Route::delete('/jadwal-latihan/{id}', [AdminController::class, 'Hapus_Jadwal']);
+    Route::get('/admin/jadwal-latihan', [AdminController::class, 'Jadwallatihan_Siswa']);
+    Route::get('/admin/jadwal-latihan/{id}', [AdminController::class, 'JadwalperPelatih']);
+    Route::post('/admin/tambah-jadwal', [AdminController::class, 'Tambah_Jadwal']);
+    Route::put('/admin/jadwal-latihan/{id}', [AdminController::class, 'Update_Jadwal']);
+    Route::delete('/admin/jadwal-latihan/{id}', [AdminController::class, 'Hapus_Jadwal']);
 
+    // Media Promosi (Admin)
+    Route::get('/admin/media-promosi', [AdminController::class, 'MediaPromosiAdmin']);
+    Route::get('/admin/media-promosi/{id}', [AdminController::class, 'DetailMediaPromosi']);
+    Route::post('/admin/media-promosi', [AdminController::class, 'TambahMediaPromosi']);
+    Route::post('/admin/media-promosi/{id}', [AdminController::class, 'UpdateMediaPromosi']);
+    Route::delete('/admin/media-promosi/{id}', [AdminController::class, 'HapusMediaPromosi']);
 
     //Presensi Pelatih
-    Route::get('/presensi', [PelatihController::class, 'kehadiran']);
-    Route::post('/presensi/input', [PelatihController::class, 'Input_Presensi']);
-    Route::get('/presensi/rekap', [PelatihController::class, 'Rekap_Absensi']);
-    Route::delete('/presensi/{id_jadwal}', [AdminController::class, 'hapus_presensi']);
+    Route::get('/pelatih/presensi', [PelatihController::class, 'kehadiran']);
+    Route::post('/pelatih/presensi/input', [PelatihController::class, 'Input_Presensi']);
+    Route::get('/pelatih/presensi/rekap', [PelatihController::class, 'Rekap_Absensi']);
+    Route::delete('/admin/presensi/{id_jadwal}', [AdminController::class, 'hapus_presensi']);
 
 
     //Performa Siswa Pelatih
-    Route::get('/performa-siswa/{id}', [PelatihController::class, 'Performa_Siswa']);
-    Route::post('/performa-siswa/input/{id}', [PelatihController::class, 'Input_Performa_Siswa']);
-    Route::put('/performa-siswa/update/{id}', [PelatihController::class, 'Update_Performa_Siswa']);
+    Route::get('/pelatih/performa-siswa/{id}', [PelatihController::class, 'Performa_Siswa']);
+    Route::post('/pelatih/performa-siswa/input/{id}', [PelatihController::class, 'Input_Performa_Siswa']);
+    Route::put('/pelatih/performa-siswa/update/{id}', [PelatihController::class, 'Update_Performa_Siswa']);
 
 
     //Catatan Pelatih
-    Route::get('/catatan-pelatih', [PelatihController::class, 'Catatan_Pelatih']);
-    Route::get('/catatan-pelatih/{id}', [PelatihController::class, 'Catatan_perPelatih']);
-    Route::post('/catatan-pelatih/tambah', [PelatihController::class, 'Tambah_Catatan_Pelatih']);
-    Route::put('/catatan-pelatih/update/{id}', [PelatihController::class, 'Update_Catatan_Pelatih']);
-    Route::delete('/catatan-pelatih/hapus/{id}', [PelatihController::class, 'Hapus_Catatan_Pelatih']);
+    Route::get('/pelatih/catatan-pelatih', [PelatihController::class, 'Catatan_Pelatih']);
+    Route::get('/pelatih/catatan-pelatih/{id}', [PelatihController::class, 'Catatan_perPelatih']);
+    Route::post('/pelatih/catatan-pelatih/tambah', [PelatihController::class, 'Tambah_Catatan_Pelatih']);
+    Route::put('/pelatih/catatan-pelatih/update/{id}', [PelatihController::class, 'Update_Catatan_Pelatih']);
+    Route::delete('/pelatih/catatan-pelatih/hapus/{id}', [PelatihController::class, 'Hapus_Catatan_Pelatih']);
+
+    // Bukti Pembayaran Pelatih
+    Route::get('/pelatih/bukti-pembayaran/form', [PelatihController::class, 'FormUploadBuktiPembayaran']);
+    Route::post('/pelatih/bukti-pembayaran', [PelatihController::class, 'Store_Bukti_Pembayaran_Pelatih']);
+    Route::get('/pelatih/bukti-pembayaran/history', [PelatihController::class, 'History_Bukti_Pembayaran_Pelatih']);
+    Route::delete('/pelatih/bukti-pembayaran/{id}', [PelatihController::class, 'Hapus_Bukti_Pembayaran_Pelatih']);
+
+    // Prestasi (Admin)
+    Route::get('/admin/prestasi/form', [AdminController::class, 'FormPrestasiAdmin']);
+    Route::post('/admin/prestasi', [AdminController::class, 'StorePrestasiAdmin']);
+    Route::get('/admin/prestasi/history', [AdminController::class, 'HistoryPrestasiAdmin']);
 
 });
 
