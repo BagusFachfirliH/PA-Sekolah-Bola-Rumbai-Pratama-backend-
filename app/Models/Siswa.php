@@ -92,6 +92,16 @@ public function jadwal()
     );
 }
 
+public function promosi()
+{
+    return $this->hasMany(Promosi::class, 'id_siswa', 'id_siswa');
+}
+
+public function pencapaian()
+{
+    return $this->hasMany(Pencapaian::class, 'id_siswa', 'id_siswa');
+}
+
 
 
 }
