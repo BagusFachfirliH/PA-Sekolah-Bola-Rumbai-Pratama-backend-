@@ -13,7 +13,9 @@ class Pencapaian extends Model
     protected $fillable = [
         'id_siswa',
         'id_badge',
+        'nama_prestasi',
         'tanggal_diberikan',
+
     ];
 
     public function siswa()
