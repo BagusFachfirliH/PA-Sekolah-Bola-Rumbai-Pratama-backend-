@@ -901,7 +901,7 @@ public function Hapus_Jadwal($id)
 
 public function MediaPromosiAdmin(Request $request)
 {
-    $query = Promosi::with(['siswa:id_siswa,nama_siswa,umur,status', 'dibuatOleh:id,name']);
+    $query = Promosi::with(['siswa:id_siswa,nama_siswa,umur,status', 'dibuatOleh:id_admin,nama_admin']);
 
     if ($request->filled('search')) {
         $search = $request->search;
@@ -936,6 +936,9 @@ public function MediaPromosiAdmin(Request $request)
     $promosi = $query->orderBy('tanggal_promosi', 'desc')
         ->orderBy('id_promosi', 'desc')
         ->paginate(10)
+        ->through(function ($item) {
+            return $this->formatMediaPromosi($item);
+        })
         ->withQueryString();
 
     $kategoriUmur = Siswa::select('umur')
@@ -984,47 +987,112 @@ public function MediaPromosiAdmin(Request $request)
 
 public function DetailMediaPromosi($id)
 {
-    $promosi = Promosi::with(['siswa:id_siswa,nama_siswa,umur,status', 'dibuatOleh:id,name'])
+    $promosi = Promosi::with(['siswa:id_siswa,nama_siswa,umur,status', 'dibuatOleh:id_admin,nama_admin'])
         ->findOrFail($id);
 
     return response()->json([
         'success' => true,
         'message' => 'Detail media promosi berhasil diambil',
-        'data' => $promosi,
+        'data' => $this->formatMediaPromosi($promosi),
     ]);
 }
 
 public function TambahMediaPromosi(Request $request)
 {
     $validated = $request->validate([
+        'target_mode' => 'required|in:semua,kategori,siswa',
         'judul' => 'required|string|max:100',
         'isi_promosi' => 'required|string|max:500',
-        'id_siswa' => 'required|exists:siswa,id_siswa',
         'tanggal_promosi' => 'required|date',
+        'kategori_umur' => 'nullable|array|min:1',
+        'kategori_umur.*' => 'required|string',
+        'id_siswa' => 'nullable|array|min:1',
+        'id_siswa.*' => 'required|exists:siswa,id_siswa',
         'foto_promosi' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
     ]);
 
-    $siswa = Siswa::findOrFail($validated['id_siswa']);
+    if ($validated['target_mode'] === 'kategori' && !$request->filled('kategori_umur')) {
+        return response()->json([
+            'success' => false,
+            'message' => 'kategori_umur wajib diisi jika target_mode adalah kategori',
+        ], 422);
+    }
+
+    if ($validated['target_mode'] === 'siswa' && empty($validated['id_siswa'])) {
+        return response()->json([
+            'success' => false,
+            'message' => 'id_siswa wajib diisi jika target_mode adalah siswa',
+        ], 422);
+    }
+
+    $siswaQuery = Siswa::query();
+
+    if ($validated['target_mode'] === 'kategori') {
+        $umurList = collect($validated['kategori_umur'])
+            ->map(fn ($kategori) => $this->extractUmurFromKategori($kategori))
+            ->filter(fn ($umur) => !is_null($umur))
+            ->unique()
+            ->values();
+
+        if ($umurList->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'kategori_umur tidak valid',
+            ], 422);
+        }
+
+        $siswaQuery->whereIn('umur', $umurList->all());
+    }
+
+    if ($validated['target_mode'] === 'siswa') {
+        $siswaQuery->whereIn('id_siswa', $validated['id_siswa']);
+    }
+
+    $siswaTargets = $siswaQuery
+        ->select('id_siswa', 'nama_siswa', 'umur', 'status')
+        ->orderBy('nama_siswa')
+        ->get();
+
+    if ($siswaTargets->isEmpty()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Tidak ada siswa yang sesuai dengan target promosi',
+        ], 404);
+    }
+
+    $admin = Admin::where('user_id', auth()->id())->first();
+
+    if (!$admin) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Data admin tidak ditemukan'
+        ], 404);
+    }
 
     $fotoPath = null;
     if ($request->hasFile('foto_promosi')) {
         $fotoPath = $request->file('foto_promosi')->store('promosi');
     }
 
-    $promosi = Promosi::create([
-        'judul' => $validated['judul'],
-        'isi_promosi' => $validated['isi_promosi'],
-        'id_siswa' => $siswa->id_siswa,
-        'tanggal_promosi' => $validated['tanggal_promosi'],
-        'dibuat_oleh' => auth()->id(),
-        'foto_promosi' => $fotoPath,
-        'kategori' => 'Berita',
-    ]);
+    $promosi = $siswaTargets->map(function ($siswa) use ($validated, $fotoPath, $admin) {
+        return Promosi::create([
+            'judul' => $validated['judul'],
+            'isi_promosi' => $validated['isi_promosi'],
+            'id_siswa' => $siswa->id_siswa,
+            'tanggal_promosi' => $validated['tanggal_promosi'],
+            'dibuat_oleh' => $admin->id_admin,
+            'foto_promosi' => $fotoPath,
+            'kategori' => 'Berita',
+        ])->load(['siswa:id_siswa,nama_siswa,umur,status', 'dibuatOleh:id_admin,nama_admin']);
+    })->values();
 
     return response()->json([
         'success' => true,
         'message' => 'Media promosi berhasil ditambahkan',
-        'data' => $promosi->load(['siswa:id_siswa,nama_siswa,umur,status', 'dibuatOleh:id,name']),
+        'target_mode' => $validated['target_mode'],
+        'kategori_umur' => $validated['target_mode'] === 'kategori' ? array_values($validated['kategori_umur']) : null,
+        'total_data' => $promosi->count(),
+        'data' => $promosi->map(fn ($item) => $this->formatMediaPromosi($item))->values(),
     ], 201);
 }
 
@@ -1063,7 +1131,9 @@ public function UpdateMediaPromosi(Request $request, $id)
     return response()->json([
         'success' => true,
         'message' => 'Media promosi berhasil diupdate',
-        'data' => $promosi->load(['siswa:id_siswa,nama_siswa,umur,status', 'dibuatOleh:id,name']),
+        'data' => $this->formatMediaPromosi(
+            $promosi->load(['siswa:id_siswa,nama_siswa,umur,status', 'dibuatOleh:id_admin,nama_admin'])
+        ),
     ]);
 }
 
@@ -1081,6 +1151,24 @@ public function HapusMediaPromosi($id)
         'success' => true,
         'message' => 'Media promosi berhasil dihapus',
     ]);
+}
+
+private function formatMediaPromosi(Promosi $promosi): array
+{
+    return [
+        'id_promosi' => $promosi->id_promosi,
+        'judul' => $promosi->judul,
+        'isi_promosi' => $promosi->isi_promosi,
+        'tanggal_promosi' => $promosi->tanggal_promosi,
+        'kategori' => $promosi->kategori,
+        'foto_promosi' => $promosi->foto_promosi,
+        'id_siswa' => $promosi->id_siswa,
+        'nama_siswa' => $promosi->siswa->nama_siswa ?? null,
+        'kategori_umur' => $promosi->siswa ? 'U-' . $promosi->siswa->umur : null,
+        'status_siswa' => $promosi->siswa->status ?? null,
+        'dibuat_oleh' => $promosi->dibuat_oleh,
+        'nama_admin' => $promosi->dibuatOleh->nama_admin ?? null,
+    ];
 }
 
 public function FormPrestasiAdmin(Request $request)
@@ -1266,3 +1354,11 @@ private function extractUmurFromKategori(?string $kategoriUmur): ?int
 
 
 }
+    $admin = Admin::where('user_id', auth()->id())->first();
+
+    if (!$admin) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Data admin tidak ditemukan'
+        ], 404);
+    }
