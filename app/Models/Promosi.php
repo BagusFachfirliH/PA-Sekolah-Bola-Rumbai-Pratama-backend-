@@ -29,7 +29,7 @@ class Promosi extends Model
 
     public function dibuatOleh()
     {
-        return $this->belongsTo(User::class, 'dibuat_oleh', 'id');
+        return $this->belongsTo(Admin::class, 'dibuat_oleh', 'id_admin');
     }
 
     public function getKategoriUmurAttribute()
