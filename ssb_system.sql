@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 30, 2026 at 07:00 PM
+-- Generation Time: Apr 30, 2026 at 08:52 PM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -199,7 +199,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (1, '2014_10_12_000000_create_users_table', 1),
 (2, '2014_10_12_100000_create_password_reset_tokens_table', 1),
 (3, '2019_08_19_000000_create_failed_jobs_table', 1),
-(4, '2019_12_14_000001_create_personal_access_tokens_table', 1);
+(4, '2019_12_14_000001_create_personal_access_tokens_table', 1),
+(5, '2026_04_30_174307_add_group_id_to_promosi_table', 2);
 
 -- --------------------------------------------------------
 
@@ -348,9 +349,19 @@ INSERT INTO `pembayaran` (`id_pembayaran`, `id_siswa`, `periode`, `jumlah`, `tan
 CREATE TABLE `pencapaian` (
   `id_pencapaian` int(11) NOT NULL,
   `id_siswa` int(11) NOT NULL,
-  `id_badge` int(11) NOT NULL,
+  `id_badge` int(11) DEFAULT NULL,
+  `nama_prestasi` varchar(255) NOT NULL,
   `tanggal_diberikan` date DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `pencapaian`
+--
+
+INSERT INTO `pencapaian` (`id_pencapaian`, `id_siswa`, `id_badge`, `nama_prestasi`, `tanggal_diberikan`) VALUES
+(1, 9, NULL, 'Juara Turnamen Sepak Bola Antar Kota', '2026-05-01'),
+(2, 11, NULL, 'Juara Turnamen Sepak Bola Antar Kota', '2026-05-01'),
+(3, 1, NULL, 'Juara Turnamen Sepak Bola Antar Sekolah', '2026-05-01');
 
 -- --------------------------------------------------------
 
@@ -437,7 +448,7 @@ INSERT INTO `personal_access_tokens` (`id`, `tokenable_type`, `tokenable_id`, `n
 (15, 'App\\Models\\User', 32, 'auth_token', 'd688ac5070e2efec22c0dbafde27069ad90cf519b3b72a458c8d959e196ff319', '[\"*\"]', '2026-04-14 11:50:36', NULL, '2026-04-14 00:18:32', '2026-04-14 11:50:36'),
 (21, 'App\\Models\\User', 30, 'auth_token', '637ac2af4ff36917cae928051e304245bb6459e069377cea9b344de8592010c3', '[\"*\"]', '2026-04-16 03:57:19', NULL, '2026-04-16 01:42:42', '2026-04-16 03:57:19'),
 (22, 'App\\Models\\User', 29, 'auth_token', 'ef8f8b06bc2deac7cb050b19701f591380d4ee508e8f316c32393524b4d94757', '[\"*\"]', '2026-04-16 10:23:48', NULL, '2026-04-16 03:56:00', '2026-04-16 10:23:48'),
-(26, 'App\\Models\\User', 7, 'auth_token', 'eecf1e782bf125f29f212bba9837a899909483452c70112643e729580d4e21e7', '[\"*\"]', NULL, NULL, '2026-04-30 09:45:30', '2026-04-30 09:45:30');
+(27, 'App\\Models\\User', 7, 'auth_token', '0f3055b1dfb61f7369fd594e28a572146c3b5dd5799cfaa63553197e6b170b5a', '[\"*\"]', '2026-04-30 11:51:13', NULL, '2026-04-30 10:29:46', '2026-04-30 11:51:13');
 
 -- --------------------------------------------------------
 
@@ -487,6 +498,7 @@ CREATE TABLE `profil_siswa` (
 
 CREATE TABLE `promosi` (
   `id_promosi` int(11) NOT NULL,
+  `group_id` char(36) DEFAULT NULL,
   `id_siswa` int(11) NOT NULL,
   `judul` varchar(100) DEFAULT NULL,
   `isi_promosi` varchar(500) DEFAULT NULL,
@@ -500,17 +512,12 @@ CREATE TABLE `promosi` (
 -- Dumping data for table `promosi`
 --
 
-INSERT INTO `promosi` (`id_promosi`, `id_siswa`, `judul`, `isi_promosi`, `tanggal_promosi`, `dibuat_oleh`, `foto_promosi`, `kategori`) VALUES
-(2, 1, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/r5dEDZT8sRXpBrnMyiqjN6j4k8UEQMW8c1lCd1Y9.png', 'Berita'),
-(3, 9, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/r5dEDZT8sRXpBrnMyiqjN6j4k8UEQMW8c1lCd1Y9.png', 'Berita'),
-(4, 11, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/r5dEDZT8sRXpBrnMyiqjN6j4k8UEQMW8c1lCd1Y9.png', 'Berita'),
-(5, 8, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/r5dEDZT8sRXpBrnMyiqjN6j4k8UEQMW8c1lCd1Y9.png', 'Berita'),
-(6, 6, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/r5dEDZT8sRXpBrnMyiqjN6j4k8UEQMW8c1lCd1Y9.png', 'Berita'),
-(7, 9, 'Kemenangan juara sepak bola', 'Selamat Atas kemenangan pihak sekolah ssb rumbai pratama', '2026-04-30', 1, 'promosi/IjDMaW3zqQ1Me22Y29zqF9aMTrvW3DOFb1PJAsyN.png', 'Berita'),
-(8, 11, 'Kemenangan juara sepak bola', 'Selamat Atas kemenangan pihak sekolah ssb rumbai pratama', '2026-04-30', 1, 'promosi/IjDMaW3zqQ1Me22Y29zqF9aMTrvW3DOFb1PJAsyN.png', 'Berita'),
-(9, 8, 'Kemenangan juara sepak bola', 'Selamat Atas kemenangan pihak sekolah ssb rumbai pratama', '2026-04-30', 1, 'promosi/IjDMaW3zqQ1Me22Y29zqF9aMTrvW3DOFb1PJAsyN.png', 'Berita'),
-(10, 6, 'Kemenangan juara sepak bola', 'Selamat Atas kemenangan pihak sekolah ssb rumbai pratama', '2026-04-30', 1, 'promosi/IjDMaW3zqQ1Me22Y29zqF9aMTrvW3DOFb1PJAsyN.png', 'Berita'),
-(11, 9, 'Kemenangan besar dari siswa kami Ibrahim Mufid zaki', 'Kemenangan sepak bola antar kota dimenanangkan oleh ssb rumbai pratama', '2026-04-30', 1, 'promosi/8gF4Me0A0PzTPoZUJuuQjgvMMsMlIJUhBB3N9T8Y.png', 'Berita');
+INSERT INTO `promosi` (`id_promosi`, `group_id`, `id_siswa`, `judul`, `isi_promosi`, `tanggal_promosi`, `dibuat_oleh`, `foto_promosi`, `kategori`) VALUES
+(16, 'a59a5aa9-0826-4954-8b70-a91395df8175', 1, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/ZmEsI61qu0NKKKNMg1XTJ5MLSYbBdC2yChi5Cq6N.png', 'Berita'),
+(17, 'a59a5aa9-0826-4954-8b70-a91395df8175', 9, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/ZmEsI61qu0NKKKNMg1XTJ5MLSYbBdC2yChi5Cq6N.png', 'Berita'),
+(18, 'a59a5aa9-0826-4954-8b70-a91395df8175', 11, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/ZmEsI61qu0NKKKNMg1XTJ5MLSYbBdC2yChi5Cq6N.png', 'Berita'),
+(19, 'a59a5aa9-0826-4954-8b70-a91395df8175', 8, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/ZmEsI61qu0NKKKNMg1XTJ5MLSYbBdC2yChi5Cq6N.png', 'Berita'),
+(20, 'a59a5aa9-0826-4954-8b70-a91395df8175', 6, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/ZmEsI61qu0NKKKNMg1XTJ5MLSYbBdC2yChi5Cq6N.png', 'Berita');
 
 -- --------------------------------------------------------
 
@@ -771,7 +778,8 @@ ALTER TABLE `profil_siswa`
 ALTER TABLE `promosi`
   ADD PRIMARY KEY (`id_promosi`),
   ADD KEY `dibuat_oleh` (`dibuat_oleh`),
-  ADD KEY `promosi_siswa` (`id_siswa`);
+  ADD KEY `promosi_siswa` (`id_siswa`),
+  ADD KEY `promosi_group_id_index` (`group_id`);
 
 --
 -- Indexes for table `respon_feedback`
@@ -859,7 +867,7 @@ ALTER TABLE `master_badge`
 -- AUTO_INCREMENT for table `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `notifikasi`
@@ -895,7 +903,7 @@ ALTER TABLE `pembayaran`
 -- AUTO_INCREMENT for table `pencapaian`
 --
 ALTER TABLE `pencapaian`
-  MODIFY `id_pencapaian` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id_pencapaian` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `pendaftaran`
@@ -913,7 +921,7 @@ ALTER TABLE `performa_siswa`
 -- AUTO_INCREMENT for table `personal_access_tokens`
 --
 ALTER TABLE `personal_access_tokens`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
 
 --
 -- AUTO_INCREMENT for table `presensi`
@@ -925,7 +933,7 @@ ALTER TABLE `presensi`
 -- AUTO_INCREMENT for table `promosi`
 --
 ALTER TABLE `promosi`
-  MODIFY `id_promosi` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id_promosi` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `respon_feedback`
