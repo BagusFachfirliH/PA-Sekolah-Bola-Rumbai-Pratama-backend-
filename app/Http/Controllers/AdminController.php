@@ -22,6 +22,7 @@ use App\Models\Pencapaian;
 use App\Models\MasterBadge;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use App\Models\Pendaftaran_Siswa;
 use Carbon\Carbon;
 
@@ -1074,8 +1075,11 @@ public function TambahMediaPromosi(Request $request)
         $fotoPath = $request->file('foto_promosi')->store('promosi');
     }
 
-    $promosi = $siswaTargets->map(function ($siswa) use ($validated, $fotoPath, $admin) {
+    $groupId = (string) Str::uuid();
+
+    $promosi = $siswaTargets->map(function ($siswa) use ($validated, $fotoPath, $admin, $groupId) {
         return Promosi::create([
+            'group_id' => $groupId,
             'judul' => $validated['judul'],
             'isi_promosi' => $validated['isi_promosi'],
             'id_siswa' => $siswa->id_siswa,
@@ -1098,43 +1102,143 @@ public function TambahMediaPromosi(Request $request)
 
 public function UpdateMediaPromosi(Request $request, $id)
 {
-    $promosi = Promosi::findOrFail($id);
+    $promosiAwal = Promosi::findOrFail($id);
 
     $validated = $request->validate([
+        'target_mode' => 'required|in:semua,kategori,siswa',
         'judul' => 'required|string|max:100',
         'isi_promosi' => 'required|string|max:500',
-        'id_siswa' => 'required|exists:siswa,id_siswa',
         'tanggal_promosi' => 'required|date',
+        'kategori_umur' => 'nullable|array|min:1',
+        'kategori_umur.*' => 'required|string',
+        'id_siswa' => 'nullable|array|min:1',
+        'id_siswa.*' => 'required|exists:siswa,id_siswa',
         'foto_promosi' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
     ]);
 
-    $siswa = Siswa::findOrFail($validated['id_siswa']);
-
-    $fotoPath = $promosi->foto_promosi;
-    if ($request->hasFile('foto_promosi')) {
-        if ($fotoPath && Storage::exists($fotoPath)) {
-            Storage::delete($fotoPath);
-        }
-
-        $fotoPath = $request->file('foto_promosi')->store('promosi');
+    if ($validated['target_mode'] === 'kategori' && !$request->filled('kategori_umur')) {
+        return response()->json([
+            'success' => false,
+            'message' => 'kategori_umur wajib diisi jika target_mode adalah kategori',
+        ], 422);
     }
 
-    $promosi->update([
-        'judul' => $validated['judul'],
-        'isi_promosi' => $validated['isi_promosi'],
-        'id_siswa' => $siswa->id_siswa,
-        'tanggal_promosi' => $validated['tanggal_promosi'],
-        'foto_promosi' => $fotoPath,
-        'kategori' => 'Berita',
-    ]);
+    if ($validated['target_mode'] === 'siswa' && empty($validated['id_siswa'])) {
+        return response()->json([
+            'success' => false,
+            'message' => 'id_siswa wajib diisi jika target_mode adalah siswa',
+        ], 422);
+    }
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Media promosi berhasil diupdate',
-        'data' => $this->formatMediaPromosi(
-            $promosi->load(['siswa:id_siswa,nama_siswa,umur,status', 'dibuatOleh:id_admin,nama_admin'])
-        ),
-    ]);
+    $siswaQuery = Siswa::query();
+
+    if ($validated['target_mode'] === 'kategori') {
+        $umurList = collect($validated['kategori_umur'])
+            ->map(fn ($kategori) => $this->extractUmurFromKategori($kategori))
+            ->filter(fn ($umur) => !is_null($umur))
+            ->unique()
+            ->values();
+
+        if ($umurList->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'kategori_umur tidak valid',
+            ], 422);
+        }
+
+        $siswaQuery->whereIn('umur', $umurList->all());
+    }
+
+    if ($validated['target_mode'] === 'siswa') {
+        $siswaQuery->whereIn('id_siswa', $validated['id_siswa']);
+    }
+
+    $siswaTargets = $siswaQuery
+        ->select('id_siswa', 'nama_siswa', 'umur', 'status')
+        ->orderBy('nama_siswa')
+        ->get();
+
+    if ($siswaTargets->isEmpty()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Tidak ada siswa yang sesuai dengan target promosi',
+        ], 404);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        $fotoLama = $promosiAwal->foto_promosi;
+        $fotoPath = $fotoLama;
+
+        if ($request->hasFile('foto_promosi')) {
+            $fotoPath = $request->file('foto_promosi')->store('promosi');
+        }
+
+        // Prioritaskan group_id untuk identifikasi batch.
+        $batchLama = Promosi::query();
+        if (!empty($promosiAwal->group_id)) {
+            $batchLama->where('group_id', $promosiAwal->group_id);
+        } else {
+            // Fallback untuk data lama yang belum punya group_id.
+            $batchLama
+                ->where('dibuat_oleh', $promosiAwal->dibuat_oleh)
+                ->whereDate('tanggal_promosi', $promosiAwal->tanggal_promosi)
+                ->where('judul', $promosiAwal->judul)
+                ->where('isi_promosi', $promosiAwal->isi_promosi)
+                ->where(function ($query) use ($promosiAwal) {
+                    if (is_null($promosiAwal->foto_promosi)) {
+                        $query->whereNull('foto_promosi');
+                    } else {
+                        $query->where('foto_promosi', $promosiAwal->foto_promosi);
+                    }
+                });
+        }
+
+        $batchLamaIds = $batchLama->pluck('id_promosi');
+
+        $groupIdBaru = (string) Str::uuid();
+
+        if ($batchLamaIds->isNotEmpty()) {
+            Promosi::whereIn('id_promosi', $batchLamaIds)->delete();
+        }
+
+        $promosiBaru = $siswaTargets->map(function ($siswa) use ($validated, $fotoPath, $promosiAwal, $groupIdBaru) {
+            return Promosi::create([
+                'group_id' => $groupIdBaru,
+                'judul' => $validated['judul'],
+                'isi_promosi' => $validated['isi_promosi'],
+                'id_siswa' => $siswa->id_siswa,
+                'tanggal_promosi' => $validated['tanggal_promosi'],
+                'dibuat_oleh' => $promosiAwal->dibuat_oleh,
+                'foto_promosi' => $fotoPath,
+                'kategori' => 'Berita',
+            ])->load(['siswa:id_siswa,nama_siswa,umur,status', 'dibuatOleh:id_admin,nama_admin']);
+        })->values();
+
+        if ($request->hasFile('foto_promosi') && $fotoLama && Storage::exists($fotoLama)) {
+            Storage::delete($fotoLama);
+        }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Media promosi berhasil diupdate',
+            'target_mode' => $validated['target_mode'],
+            'kategori_umur' => $validated['target_mode'] === 'kategori' ? array_values($validated['kategori_umur']) : null,
+            'total_data' => $promosiBaru->count(),
+            'data' => $promosiBaru->map(fn ($item) => $this->formatMediaPromosi($item))->values(),
+        ]);
+    } catch (\Throwable $e) {
+        DB::rollBack();
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal update media promosi',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
 }
 
 public function HapusMediaPromosi($id)
@@ -1153,10 +1257,42 @@ public function HapusMediaPromosi($id)
     ]);
 }
 
+public function UpdateMediaPromosiByGroup(Request $request, $groupId)
+{
+    $promosi = Promosi::where('group_id', $groupId)->orderBy('id_promosi')->firstOrFail();
+    return $this->UpdateMediaPromosi($request, $promosi->id_promosi);
+}
+
+public function HapusMediaPromosiByGroup($groupId)
+{
+    $promosiGroup = Promosi::where('group_id', $groupId)->get();
+
+    if ($promosiGroup->isEmpty()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Group media promosi tidak ditemukan',
+        ], 404);
+    }
+
+    $fotoPath = $promosiGroup->first()->foto_promosi;
+
+    Promosi::where('group_id', $groupId)->delete();
+
+    if ($fotoPath && Storage::exists($fotoPath)) {
+        Storage::delete($fotoPath);
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Group media promosi berhasil dihapus',
+    ]);
+}
+
 private function formatMediaPromosi(Promosi $promosi): array
 {
     return [
         'id_promosi' => $promosi->id_promosi,
+        'group_id' => $promosi->group_id,
         'judul' => $promosi->judul,
         'isi_promosi' => $promosi->isi_promosi,
         'tanggal_promosi' => $promosi->tanggal_promosi,
@@ -1173,6 +1309,13 @@ private function formatMediaPromosi(Promosi $promosi): array
 
 public function FormPrestasiAdmin(Request $request)
 {
+    $request->validate([
+        'kategori_umur' => 'nullable|string',
+        'search' => 'nullable|string|max:100',
+        'status' => 'nullable|in:Active,Inactive',
+        'per_page' => 'nullable|integer|min:1|max:100',
+    ]);
+
     $kategoriUmur = Siswa::select('umur')
         ->distinct()
         ->orderBy('umur')
@@ -1186,23 +1329,33 @@ public function FormPrestasiAdmin(Request $request)
     if ($request->filled('kategori_umur')) {
         $umur = $this->extractUmurFromKategori($request->kategori_umur);
 
-        if (!is_null($umur)) {
-            $siswaQuery->where('umur', $umur);
+        if (is_null($umur)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Format kategori_umur tidak valid. Gunakan format seperti U-10.',
+            ], 422);
         }
+
+        $siswaQuery->where('umur', $umur);
+    }
+
+    if ($request->filled('status')) {
+        $siswaQuery->where('status', $request->status);
     }
 
     if ($request->filled('search')) {
         $siswaQuery->where('nama_siswa', 'like', '%' . $request->search . '%');
     }
 
-    $siswa = $siswaQuery->get()->map(function ($item) {
+    $perPage = (int) ($request->per_page ?? 10);
+    $siswa = $siswaQuery->paginate($perPage)->through(function ($item) {
         return [
             'id_siswa' => $item->id_siswa,
             'nama_siswa' => $item->nama_siswa,
             'kategori_umur' => 'U-' . $item->umur,
             'status' => $item->status,
         ];
-    });
+    })->withQueryString();
 
     return response()->json([
         'success' => true,
@@ -1210,11 +1363,12 @@ public function FormPrestasiAdmin(Request $request)
         'filters' => [
             'kategori_umur' => $request->kategori_umur,
             'search' => $request->search,
+            'status' => $request->status,
         ],
         'data' => [
             'kategori_umur' => $kategoriUmur,
             'siswa' => $siswa,
-            'total_siswa' => $siswa->count(),
+            'total_siswa' => $siswa->total(),
         ],
     ]);
 }
@@ -1222,38 +1376,40 @@ public function FormPrestasiAdmin(Request $request)
 public function StorePrestasiAdmin(Request $request)
 {
     $validated = $request->validate([
-        'id_siswa' => 'required|exists:siswa,id_siswa',
-        'nama_prestasi' => 'required|string|max:100',
+        'id_siswa' => 'required|array',
+        'id_siswa.*' => 'exists:siswa,id_siswa',
+        'nama_prestasi' => 'required|string|max:255',
         'tanggal_diberikan' => 'nullable|date',
     ]);
 
     DB::beginTransaction();
 
     try {
-        $badge = MasterBadge::firstOrCreate(
-            ['nama_badge' => $validated['nama_prestasi']],
-            [
-                'deskripsi' => null,
-                'icon_badge' => null,
-            ]
-        );
+        $prestasiIds = [];
 
-        $prestasi = Pencapaian::create([
-            'id_siswa' => $validated['id_siswa'],
-            'id_badge' => $badge->id_badge,
-            'tanggal_diberikan' => $validated['tanggal_diberikan'] ?? now()->toDateString(),
-        ]);
+        foreach ($validated['id_siswa'] as $id) {
+            $prestasi = Pencapaian::create([
+                'id_siswa' => $id,
+                'id_badge' => null, // 🔥 nonaktifkan badge
+                'nama_prestasi' => $validated['nama_prestasi'],
+                'tanggal_diberikan' => $validated['tanggal_diberikan'] ?? now()->toDateString(),
+            ]);
+
+            $prestasiIds[] = $prestasi->id_pencapaian;
+        }
 
         DB::commit();
 
+        $data = Pencapaian::with([
+            'siswa:id_siswa,nama_siswa,umur',
+        ])->whereIn('id_pencapaian', $prestasiIds)->get();
+
         return response()->json([
             'success' => true,
-            'message' => 'Prestasi berhasil disimpan',
-            'data' => $prestasi->load([
-                'siswa:id_siswa,nama_siswa,umur',
-                'badge:id_badge,nama_badge',
-            ]),
+            'message' => 'Prestasi berhasil disimpan (tanpa badge)',
+            'data' => $data,
         ], 201);
+
     } catch (\Throwable $e) {
         DB::rollBack();
 
@@ -1269,9 +1425,9 @@ public function HistoryPrestasiAdmin(Request $request)
 {
     $query = Pencapaian::with([
         'siswa:id_siswa,nama_siswa,umur',
-        'badge:id_badge,nama_badge',
     ]);
 
+    // 🔍 Filter kategori umur
     if ($request->filled('kategori_umur')) {
         $umur = $this->extractUmurFromKategori($request->kategori_umur);
 
@@ -1282,15 +1438,15 @@ public function HistoryPrestasiAdmin(Request $request)
         }
     }
 
+    // 🔍 Search (tanpa badge)
     if ($request->filled('search')) {
         $search = $request->search;
 
         $query->where(function ($q) use ($search) {
             $q->whereHas('siswa', function ($siswaQuery) use ($search) {
                 $siswaQuery->where('nama_siswa', 'like', '%' . $search . '%');
-            })->orWhereHas('badge', function ($badgeQuery) use ($search) {
-                $badgeQuery->where('nama_badge', 'like', '%' . $search . '%');
-            });
+            })
+            ->orWhere('nama_prestasi', 'like', '%' . $search . '%'); // 🔥 langsung ke field
         });
     }
 
@@ -1308,11 +1464,12 @@ public function HistoryPrestasiAdmin(Request $request)
                 'id_siswa' => $item->id_siswa,
                 'nama_siswa' => $item->siswa->nama_siswa ?? null,
                 'kategori_umur' => isset($item->siswa->umur) ? 'U-' . $item->siswa->umur : null,
-                'nama_prestasi' => $item->badge->nama_badge ?? null,
+                'nama_prestasi' => $item->nama_prestasi, // 🔥 FIX
                 'tanggal_diberikan' => $item->tanggal_diberikan,
             ];
         });
 
+    // 🔽 Filter dropdown kategori umur
     $kategoriUmur = Siswa::select('umur')
         ->distinct()
         ->orderBy('umur')
