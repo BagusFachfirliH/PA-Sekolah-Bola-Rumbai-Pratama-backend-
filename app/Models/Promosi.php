@@ -11,6 +11,7 @@ class Promosi extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'group_id',
         'id_siswa',
         'judul',
         'isi_promosi',
