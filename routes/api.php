@@ -37,6 +37,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/anak', [SiswaController::class, 'getanak']);
     Route::post('/anak/pilih', [SiswaController::class, 'setAnak']);
+    Route::get('/siswa/kehadiran', [SiswaController::class, 'kehadiranSiswa']);
+    Route::get('/siswa/performa', [SiswaController::class, 'performaSiswa']);
+    Route::get('/siswa/prestasi', [SiswaController::class, 'prestasiSiswa']);
+    Route::get('/siswa/catatan-pelatih', [SiswaController::class, 'catatanPelatihSiswa']);
+    Route::get('/siswa/history-pembayaran', [SiswaController::class, 'historyPembayaranSiswa']);
 
 
      //  DASHBOARD
@@ -97,8 +102,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Media Promosi (Admin)
     Route::get('/admin/media-promosi', [AdminController::class, 'MediaPromosiAdmin']);
     Route::get('/admin/media-promosi/{id}', [AdminController::class, 'DetailMediaPromosi']);
-    Route::post('/admin/media-promosi', [AdminController::class, 'TambahMediaPromosi']);
-    Route::post('/admin/media-promosi/{id}', [AdminController::class, 'UpdateMediaPromosi']);
+    Route::post('/admin/tambah_media-promosi', [AdminController::class, 'TambahMediaPromosi']);
+    Route::put('/admin/media-promosi/{id}', [AdminController::class, 'UpdateMediaPromosi']);
     Route::delete('/admin/media-promosi/{id}', [AdminController::class, 'HapusMediaPromosi']);
 
     //Presensi Pelatih
@@ -134,5 +139,5 @@ Route::middleware('auth:sanctum')->group(function () {
 
 });
 
-    //Upload Bukti Pemnbayaran Perlatihan
+   
     
