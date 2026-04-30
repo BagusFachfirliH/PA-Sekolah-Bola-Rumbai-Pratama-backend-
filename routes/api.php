@@ -103,8 +103,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/media-promosi', [AdminController::class, 'MediaPromosiAdmin']);
     Route::get('/admin/media-promosi/{id}', [AdminController::class, 'DetailMediaPromosi']);
     Route::post('/admin/tambah_media-promosi', [AdminController::class, 'TambahMediaPromosi']);
-    Route::put('/admin/media-promosi/{id}', [AdminController::class, 'UpdateMediaPromosi']);
+    Route::post('/admin/media-promosi/{id}', [AdminController::class, 'UpdateMediaPromosi']);
     Route::delete('/admin/media-promosi/{id}', [AdminController::class, 'HapusMediaPromosi']);
+    Route::post('/admin/media-promosi/group/{group_id}', [AdminController::class, 'UpdateMediaPromosiByGroup']);
+    Route::delete('/admin/media-promosi/group/{group_id}', [AdminController::class, 'HapusMediaPromosiByGroup']);
 
     //Presensi Pelatih
     Route::get('/pelatih/presensi', [PelatihController::class, 'kehadiran']);
@@ -134,7 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Prestasi (Admin)
     Route::get('/admin/prestasi/form', [AdminController::class, 'FormPrestasiAdmin']);
-    Route::post('/admin/prestasi', [AdminController::class, 'StorePrestasiAdmin']);
+    Route::post('/admin/prestasi/tambah-prestasi', [AdminController::class, 'StorePrestasiAdmin']);
     Route::get('/admin/prestasi/history', [AdminController::class, 'HistoryPrestasiAdmin']);
 
 });
