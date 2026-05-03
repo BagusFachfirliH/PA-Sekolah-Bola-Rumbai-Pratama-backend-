@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\OrangTua;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 class User extends Authenticatable
 {
@@ -23,7 +24,10 @@ protected $fillable = [
     'email',
     'password',
     'role',
-    'created_at'
+    'created_at',
+ 'verification_token',
+ 'email_verified_at',
+
 ];
 
     /**
