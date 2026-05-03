@@ -37,6 +37,7 @@ public function siswaDashboard(Request $request)
 {
     $user = Auth::user();
 
+    // 🔐 VALIDASI ROLE
     if ($user->role !== 'orang_tua') {
         return response()->json([
             'status' => false,
@@ -44,6 +45,7 @@ public function siswaDashboard(Request $request)
         ], 403);
     }
 
+    // 🔎 AMBIL SISWA
     $selectedChildId = session('id_siswa');
 
     $siswaQuery = $user->siswa();
@@ -61,11 +63,74 @@ public function siswaDashboard(Request $request)
         ], 404);
     }
 
+    // 💰 PEMBAYARAN
     $pembayaranBelum = $siswa->pembayaran()
         ->whereIn('status', ['Belum', 'Lunas'])
         ->whereIn('jenis', ['Pendaftaran', 'Bulanan'])
         ->get();
 
+    // 📊 KEHADIRAN (TAHUN INI)
+    $presensi = $siswa->presensi()
+        ->whereYear('created_at', now()->year)
+        ->get();
+
+    $total = $presensi->count();
+
+    $hadir = $presensi->where('status_kehadiran', 'Hadir')->count();
+    $sakit = $presensi->where('status_kehadiran', 'Sakit')->count();
+    $izin  = $presensi->where('status_kehadiran', 'Izin')->count();
+
+    $kehadiran = [
+        'hadir' => $total ? round(($hadir / $total) * 100) : 0,
+        'sakit' => $total ? round(($sakit / $total) * 100) : 0,
+        'izin'  => $total ? round(($izin / $total) * 100) : 0,
+    ];
+
+    // 📅 JADWAL LATIHAN
+    $jadwal = $siswa->jadwal()->get();
+
+    // 📈 PERFORMA (12 BULAN)
+    \Carbon\Carbon::setLocale('id'); // 🔥 BAHASA INDONESIA
+
+    $performaRaw = $siswa->performa()
+        ->whereYear('tanggal_penilaian', now()->year)
+        ->get()
+        ->groupBy(function ($item) {
+            return \Carbon\Carbon::parse($item->tanggal_penilaian)->format('m');
+        });
+
+    $performa = [];
+
+    for ($i = 1; $i <= 12; $i++) {
+        $bulanKey = str_pad($i, 2, '0', STR_PAD_LEFT);
+        $namaBulan = \Carbon\Carbon::create()->month($i)->translatedFormat('F');
+
+        if (isset($performaRaw[$bulanKey])) {
+            $data = $performaRaw[$bulanKey];
+
+            $performa[] = [
+                'bulan' => $namaBulan,
+                'dribbling' => round($data->avg('dribbling')),
+                'passing'   => round($data->avg('passing')),
+                'shooting'  => round($data->avg('shooting')),
+            ];
+        } else {
+            $performa[] = [
+                'bulan' => $namaBulan,
+                'dribbling' => 0,
+                'passing'   => 0,
+                'shooting'  => 0,
+            ];
+        }
+    }
+
+    // 🏆 PRESTASI
+    $prestasi = $siswa->pencapaian;
+
+    // 📝 CATATAN PELATIH
+    $catatan = $siswa->catatan()->latest()->get();
+
+    // 🚀 RESPONSE FINAL
     return response()->json([
         'status' => true,
         'message' => 'Dashboard siswa',
@@ -73,7 +138,13 @@ public function siswaDashboard(Request $request)
             'nama_siswa' => $siswa->nama_siswa,
             'userName' => $user->name,
             'status_siswa' => $siswa->status,
-            'pembayaranBelum' => $pembayaranBelum
+
+            'pembayaranBelum' => $pembayaranBelum,
+            'kehadiran' => $kehadiran,
+            'jadwal' => $jadwal,
+            'performa' => $performa,
+            'prestasi' => $prestasi,
+            'catatan' => $catatan,
         ]
     ]);
 }
@@ -129,7 +200,7 @@ public function adminDashboard()
         'izin'  => (int) ($kehadiranRaw['Izin'] ?? 0),
     ];
 
-    // 🔥 HISTORY PEMBAYARAN
+    //  HISTORY PEMBAYARAN
     $history = Pembayaran::with('siswa:id_siswa,nama_siswa')
         ->orderBy('tanggal_bayar', 'desc')
         ->limit(5)
@@ -144,7 +215,7 @@ public function adminDashboard()
             ];
         });
 
-    // 🔥 VALIDASI PEMBAYARAN
+    //  VALIDASI PEMBAYARAN
     $validasiPembayaran = BuktiPembayaran::with('siswa:id_siswa,nama_siswa')
         ->where('status', 'Menunggu validasi')
         ->get()
