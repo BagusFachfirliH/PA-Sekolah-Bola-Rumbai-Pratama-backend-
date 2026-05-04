@@ -133,6 +133,7 @@ public function login(Request $request)
 {
     Log::info('LOGIN REQUEST', [
         'email' => $request->email,
+        'role' => $request->role
     ]);
 
     $request->validate([
@@ -141,32 +142,53 @@ public function login(Request $request)
         'role' => 'required'
     ]);
 
-    if (!Auth::attempt($request->only('email', 'password', 'role'))) {
+    // 🔥 FIX: AMBIL USER (CASE INSENSITIVE)
+    $user = User::whereRaw('LOWER(email) = ?', [strtolower(trim($request->email))])->first();
+
+    // ❌ USER TIDAK ADA
+    if (!$user) {
         return response()->json([
             'status' => false,
             'message' => 'Email atau password salah'
         ], 401);
     }
 
-    $user = Auth::user();
+    // ❌ PASSWORD SALAH
+    if (!Hash::check($request->password, $user->password)) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Email atau password salah'
+        ], 401);
+    }
 
-    // 🔥 CEK EMAIL VERIFIKASI (INI YANG DITAMBAHKAN)
-    if (is_null($user->email_verified_at)) {
-        Auth::logout();
+    // ❌ ROLE TIDAK SESUAI
+    if ($user->role !== $request->role) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Role tidak sesuai'
+        ], 403);
+    }
 
+    // ❌ EMAIL VERIFIKASI (HANYA ORANG TUA)
+    if ($user->role === 'orang_tua' && is_null($user->email_verified_at)) {
         return response()->json([
             'status' => false,
             'message' => 'Email belum diverifikasi'
         ], 403);
     }
 
+    // 🔥 LOGIN
+    Auth::login($user);
+
     Log::info('LOGIN SUCCESS', [
         'user_id' => $user->id,
         'role' => $user->role,
     ]);
 
+    // 🔥 HAPUS TOKEN LAMA
     $user->tokens()->delete();
 
+    // 🔥 TOKEN BARU
     $token = $user->createToken('auth_token')->plainTextToken;
 
     // ================= ORANG TUA =================
@@ -177,8 +199,7 @@ public function login(Request $request)
         if (!$ortu) {
             return response()->json([
                 'status' => false,
-                'message' => 'Data orang tua tidak ditemukan',
-                'debug_user_id' => $user->id
+                'message' => 'Data orang tua tidak ditemukan'
             ], 404);
         }
 
@@ -215,43 +236,11 @@ public function login(Request $request)
         ]);
     }
 
-    Auth::logout();
-
     return response()->json([
         'status' => false,
         'message' => 'Role tidak valid'
     ], 403);
 }
-
-    // ================= LANDING =================
-    public function landingPage()
-    {
-        if (!Auth::check()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Belum login'
-            ], 401);
-        }
-
-        $user = Auth::user();
-
-        if ($user->role !== 'orang_tua') {
-            return response()->json([
-                'status' => false,
-                'message' => 'Bukan orang tua'
-            ], 403);
-        }
-
-        $anak = Siswa::where('id_ortu', $user->id)->get();
-
-        return response()->json([
-            'status' => true,
-            'jumlah_anak' => $anak->count(),
-            'data' => $anak
-        ]);
-    }
-
-
 public function forgotPassword(Request $request)
 {
     $request->validate([
