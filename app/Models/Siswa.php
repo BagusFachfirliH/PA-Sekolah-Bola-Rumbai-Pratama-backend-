@@ -73,7 +73,7 @@ public function notifikasi()
 
 public function presensi()
 {
-    return $this->hasMany(Presensi::class, 'id_siswa');
+    return $this->hasMany(Presensi::class, 'id_siswa', 'id_siswa');
 }
 
 
@@ -102,6 +102,10 @@ public function pencapaian()
     return $this->hasMany(Pencapaian::class, 'id_siswa', 'id_siswa');
 }
 
+public function performa()
+{
+    return $this->hasMany(\App\Models\Performa_Siswa::class, 'id_siswa', 'id_siswa');
+}
 
 
 }
