@@ -48,7 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/siswa/performa', [SiswaController::class, 'performaSiswa']);
     Route::get('/siswa/prestasi', [SiswaController::class, 'prestasiSiswa']);
     Route::get('/siswa/catatan-pelatih', [SiswaController::class, 'catatanPelatihSiswa']);
-    Route::get('/siswa/history-pembayaran', [SiswaController::class, 'historyPembayaranSiswa']);
+    Route::get('/siswa/histori-pembayaran', [SiswaController::class, 'historyPembayaranSiswa']);
 
 
      //  DASHBOARD
@@ -78,14 +78,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/pembayaran-admin', [AdminController::class, 'pembayaran_admin']);
     Route::get('/admin/bukti-pembayaran-admin/{id_siswa}', [AdminController::class, 'buktipembayaran_admin']);
     Route::get('/admin/lihat-bukti/{folder}/{file}', [AdminController::class, 'lihatBukti_pembayaran_admin']);
-    Route::post('/admin/bukti/approve/{id}', [AdminController::class, 'Bukti_Diterima']);
-    Route::post('/admin/bukti/reject/{id}', [AdminController::class, 'Bukti_Ditolak']);
+    Route::post('/admin/bukti/diterima/{id}', [AdminController::class, 'Bukti_Diterima']);
+    Route::post('/admin/bukti/ditolak/{id}', [AdminController::class, 'Bukti_Ditolak']);
     Route::get('/admin/history-pembayaran', [AdminController::class, 'history_pembayaran']);
 
 
     //Pembayaran siswa (Siswa)
-    Route::get('/admin/upload-bukti/{id_pembayaran}/{id_siswa}', [SiswaController::class, 'Upload_Bukti_Pembayaran']);
-    Route::post('/admin/upload-bukti/{id_pembayaran}', [SiswaController::class, 'Store_Bukti_Pembayaran']);
+    Route::get('/siswa/upload-bukti/{id_pembayaran}/{id_siswa}', [SiswaController::class, 'Upload_Bukti_Pembayaran']);
+    Route::post('/siswa/upload-bukti/{id_pembayaran}', [SiswaController::class, 'Store_Bukti_Pembayaran']);
 
     //Data Siswa (Admin)
     Route::get('/admin/data-siswa', [AdminController::class, 'Data_Siswa']);
@@ -119,7 +119,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/pelatih/presensi', [PelatihController::class, 'kehadiran']);
     Route::post('/pelatih/presensi/input', [PelatihController::class, 'Input_Presensi']);
     Route::get('/pelatih/presensi/rekap', [PelatihController::class, 'Rekap_Absensi']);
-    Route::delete('/admin/presensi/{id_jadwal}', [AdminController::class, 'hapus_presensi']);
 
 
     //Performa Siswa Pelatih
@@ -137,14 +136,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Bukti Pembayaran Pelatih
     Route::get('/pelatih/bukti-pembayaran/form', [PelatihController::class, 'FormUploadBuktiPembayaran']);
-    Route::post('/pelatih/bukti-pembayaran', [PelatihController::class, 'Store_Bukti_Pembayaran_Pelatih']);
-    Route::get('/pelatih/bukti-pembayaran/history', [PelatihController::class, 'History_Bukti_Pembayaran_Pelatih']);
+    Route::post('/pelatih/bukti-pembayaran/tambah', [PelatihController::class, 'Store_Bukti_Pembayaran_Pelatih']);
+    Route::get('/pelatih/bukti-pembayaran/histori', [PelatihController::class, 'History_Bukti_Pembayaran_Pelatih']);
     Route::delete('/pelatih/bukti-pembayaran/{id}', [PelatihController::class, 'Hapus_Bukti_Pembayaran_Pelatih']);
 
     // Prestasi (Admin)
     Route::get('/admin/prestasi/form', [AdminController::class, 'FormPrestasiAdmin']);
     Route::post('/admin/prestasi/tambah-prestasi', [AdminController::class, 'StorePrestasiAdmin']);
-    Route::get('/admin/prestasi/history', [AdminController::class, 'HistoryPrestasiAdmin']);
+    Route::get('/admin/prestasi/histori', [AdminController::class, 'HistoryPrestasiAdmin']);
 
 });
 
