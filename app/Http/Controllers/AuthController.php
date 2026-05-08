@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use App\Mail\SendPasswordMail;
 use App\Mail\ForgotPasswordMail;
 use App\Mail\VerifyEmailMail;
@@ -33,7 +34,11 @@ class AuthController extends Controller
         'nama' => 'required|string|max:100',
         'email' => 'required|email|unique:users,email',
         'no_hp' => 'required|numeric|unique:orang_tua,no_hp',
-        'password' => 'required|min:6|confirmed'
+        'password' => [
+            'required',
+            'confirmed',
+            PasswordRule::min(8)->letters()->numbers()->symbols(),
+        ],
     ]);
 
     DB::beginTransaction();
