@@ -27,6 +27,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 Route::get('/verify-email', [AuthController::class, 'verifyEmail']);
+Route::get('/menu-utama', [MenuUtamaController::class, 'index']);
+Route::get('/menu-utama/instagram', [MenuUtamaController::class, 'instagram']);
 
 
 
