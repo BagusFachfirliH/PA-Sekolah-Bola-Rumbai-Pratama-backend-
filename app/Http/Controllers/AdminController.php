@@ -30,54 +30,60 @@ class AdminController extends Controller
 {
     public function Admin_Pendaftaran_siswa(Request $request)
 {
-    $query = \App\Models\Pendaftaran_Siswa::with([
-        'siswa',
-        'siswa.orangtua'
+    $query = Pendaftaran_Siswa::with([
+        'siswa.orangtua',
+        'siswa.pembayaran',
+        'siswa.bukti_pembayaran',
     ]);
 
-    // SUMMARY
     $summary = [
-        'disetujui' => \App\Models\Pendaftaran_Siswa::where('status_approval', 'Disetujui')->count(),
-        'revisi'    => \App\Models\Pendaftaran_Siswa::where('status_approval', 'Revisi')->count(),
-        'ditolak'   => \App\Models\Pendaftaran_Siswa::where('status_approval', 'Ditolak')->count(),
+        'menunggu' => Pendaftaran_Siswa::where('status_approval', 'Menunggu')->count(),
+        'belum_diperiksa' => Pendaftaran_Siswa::where('status_approval', 'Menunggu')->count(),
+        'disetujui' => Pendaftaran_Siswa::where('status_approval', 'Disetujui')->count(),
+        'revisi' => Pendaftaran_Siswa::where('status_approval', 'Revisi')->count(),
+        'ditolak' => Pendaftaran_Siswa::where('status_approval', 'Ditolak')->count(),
     ];
 
-if ($request->filled('search')) {
-    $query->where(function ($q) use ($request) {
+    if ($request->filled('search')) {
+        $search = $request->search;
 
-        // search nama siswa
-        $q->whereHas('siswa', function ($sub) use ($request) {
-            $sub->where('nama_siswa', 'like', '%' . $request->search . '%');
-        })
-
-        // OR search status approval
-        ->orWhere('status_approval', 'like', '%' . $request->search . '%');
-    });
-}
-
-    // FILTER STATUS
-    if ($request->filled('status')) {
-        $query->where('status_approval', $request->status);
+        $query->where(function ($q) use ($search) {
+            $q->whereHas('siswa', function ($sub) use ($search) {
+                $sub->where('nama_siswa', 'like', '%' . $search . '%')
+                    ->orWhere('nama_ibu', 'like', '%' . $search . '%')
+                    ->orWhere('nama_ayah', 'like', '%' . $search . '%');
+            })
+            ->orWhere('status_approval', 'like', '%' . $search . '%');
+        });
     }
 
-    // PAGINATION
+    if ($request->filled('status')) {
+        $status = $request->status === 'Belum Diperiksa' ? 'Menunggu' : $request->status;
+        $query->where('status_approval', $status);
+    }
+
     $pendaftaran = $query
         ->orderBy('tanggal_daftar', 'desc')
-        ->paginate(10);
+        ->paginate($request->per_page ?? 10);
 
     return response()->json([
         'status' => true,
         'message' => 'Data pendaftaran siswa',
         'data' => $pendaftaran,
-        'summary' => $summary
+        'summary' => $summary,
     ]);
 }
 
 
 public function Admin_validasi_Pendaftaran_siswa($id)
 {
-    $pendaftaran = Pendaftaran_Siswa::with(['siswa.orangtua'])
-        ->where('id_siswa', $id)
+    $pendaftaran = Pendaftaran_Siswa::with([
+        'siswa.orangtua',
+        'siswa.pembayaran',
+        'siswa.bukti_pembayaran',
+    ])
+        ->where('id_pendaftaran', $id)
+        ->orWhere('id_siswa', $id)
         ->first();
 
     if (!$pendaftaran) {
@@ -89,25 +95,37 @@ public function Admin_validasi_Pendaftaran_siswa($id)
 
     return response()->json([
         'success' => true,
-        'data' => $pendaftaran
+        'data' => $pendaftaran,
+        'status_label' => $pendaftaran->status_approval === 'Menunggu'
+            ? 'Belum Diperiksa'
+            : $pendaftaran->status_approval,
     ]);
 }
 
 public function lihatfilePendaftaran($jenis, $filename)
 {
-    $allowed = ['akta', 'kk', 'rapor', 'foto'];
+    $folderMap = [
+        'akta' => 'akta',
+        'akta_kelahiran' => 'akta',
+        'kk' => 'kk',
+        'kartu_keluarga' => 'kk',
+        'rapor' => 'rapor',
+        'foto' => 'foto',
+        'pas_photo_3x4' => 'foto',
+        'bukti_pembayaran' => 'bukti_pembayaran',
+        'bukti' => 'bukti_pembayaran',
+    ];
 
-    if (!in_array($jenis, $allowed)) {
+    if (!array_key_exists($jenis, $folderMap)) {
         return response()->json([
             'success' => false,
             'message' => 'Jenis file tidak valid'
         ], 403);
     }
 
-    // ❗ FIX DUPLIKAT .png
-    $filename = preg_replace('/(\.png)+$/', '.png', $filename);
-
-    $path = storage_path("app/$jenis/$filename");
+    $filename = basename($filename);
+    $filename = preg_replace('/(\.png)+$/i', '.png', $filename);
+    $path = storage_path('app/' . $folderMap[$jenis] . '/' . $filename);
 
     if (!file_exists($path)) {
         return response()->json([
@@ -123,37 +141,78 @@ public function lihatfilePendaftaran($jenis, $filename)
 
 public function submitValidasi(Request $request, $id)
 {
-    $pendaftaran = Pendaftaran_Siswa::where('id_pendaftaran', $id)->firstOrFail();
+    $pendaftaran = Pendaftaran_Siswa::where('id_pendaftaran', $id)
+        ->orWhere('id_siswa', $id)
+        ->firstOrFail();
 
-    $fields = [
-        'val_nama_siswa',
-        'val_nama_ibu',
-        'val_nama_ayah',
-        'val_umur',
-        'val_akta',
-        'val_kk',
-        'val_rapor',
-        'val_foto',
+    $fieldMap = [
+        'nama_siswa' => 'val_nama_siswa',
+        'val_nama_siswa' => 'val_nama_siswa',
+        'nama_ibu' => 'val_nama_ibu',
+        'val_nama_ibu' => 'val_nama_ibu',
+        'nama_ayah' => 'val_nama_ayah',
+        'val_nama_ayah' => 'val_nama_ayah',
+        'umur' => 'val_umur',
+        'val_umur' => 'val_umur',
+        'akta' => 'val_akta',
+        'akta_kelahiran' => 'val_akta',
+        'val_akta' => 'val_akta',
+        'kk' => 'val_kk',
+        'kartu_keluarga' => 'val_kk',
+        'val_kk' => 'val_kk',
+        'rapor' => 'val_rapor',
+        'val_rapor' => 'val_rapor',
+        'foto' => 'val_foto',
+        'pas_photo_3x4' => 'val_foto',
+        'val_foto' => 'val_foto',
+        'upload_fotocopy_akta_kelahiran' => 'val_akta',
+        'upload_fotocopy_kartu_keluarga' => 'val_kk',
+        'upload_fotocopy_rapor' => 'val_rapor',
+        'upload_fotocopy_rapor_biodata' => 'val_rapor',
+        'upload_pas_foto_warna_3x4' => 'val_foto',
+        'bukti_pembayaran' => null,
+        'upload_bukti_pembayaran_pendaftaran' => null,
     ];
 
-    foreach ($fields as $field) {
-        if (!$request->has($field)) {
-            return response()->json([
-                'success' => false,
-                'message' => "$field wajib dikirim"
-            ], 422);
+    $fields = array_values(array_unique($fieldMap));
+    $fields = array_filter($fields);
+    $requestedInvalidFields = collect($request->input('invalid_fields', $request->input('fields', [])))
+        ->map(fn ($field) => trim(preg_replace('/_+/', '_', preg_replace('/[^a-z0-9]+/i', '_', strtolower((string) $field))), '_'))
+        ->values();
+    $invalidFields = $requestedInvalidFields
+        ->map(fn ($field) => array_key_exists($field, $fieldMap) ? $fieldMap[$field] : null)
+        ->filter()
+        ->unique()
+        ->values()
+        ->all();
+    $unsupportedInvalidFields = $requestedInvalidFields
+        ->filter(fn ($field) => array_key_exists($field, $fieldMap) && is_null($fieldMap[$field]))
+        ->values()
+        ->all();
+
+    $hasManualValidationValues = collect($fields)
+        ->contains(fn ($field) => $request->has($field));
+
+    if ($hasManualValidationValues) {
+        foreach ($fields as $field) {
+            $pendaftaran->$field = $this->normalizeNilaiValidasi($request->input($field, 'valid'));
+        }
+    } else {
+        foreach ($fields as $field) {
+            $pendaftaran->$field = in_array($field, $invalidFields)
+                ? 'tidak_valid'
+                : 'valid';
         }
     }
 
-    foreach ($fields as $field) {
-        $pendaftaran->$field = $request->$field;
-    }
+    $action = strtolower($request->input('action', $request->input('status', '')));
+    $values = collect($fields)->map(fn ($field) => $pendaftaran->$field);
 
-    $values = array_map(fn($v) => strtolower(trim($v ?? '')), $request->only($fields));
-
-    if (!in_array('valid', $values)) {
+    if (in_array($action, ['ditolak', 'tolak', 'reject'])) {
+        $statusApproval = 'Ditolak';
+    } elseif (in_array($action, ['revisi', 'tidak_valid', 'invalid']) || !empty($unsupportedInvalidFields)) {
         $statusApproval = 'Revisi';
-    } elseif (count(array_unique($values)) === 1 && reset($values) === 'valid') {
+    } elseif ($values->every(fn ($value) => $value === 'valid')) {
         $statusApproval = 'Disetujui';
     } else {
         $statusApproval = 'Revisi';
@@ -162,42 +221,58 @@ public function submitValidasi(Request $request, $id)
     $pendaftaran->status_approval = $statusApproval;
     $pendaftaran->save();
 
-    // =========================
-    // PAYMENT LOGIC
-    // =========================
     $paymentCreated = false;
+    $paymentUpdated = false;
     $paymentData = null;
 
     if ($statusApproval === 'Disetujui') {
-
-        $cekPembayaran = Pembayaran::where('id_siswa', $pendaftaran->id_siswa)
+        $paymentData = Pembayaran::where('id_siswa', $pendaftaran->id_siswa)
             ->where('jenis', 'Pendaftaran')
             ->first();
 
-        if (!$cekPembayaran) {
-            $paymentData = Pembayaran::create([
-                'id_siswa'      => $pendaftaran->id_siswa,
-                'periode'       => date('Y'),
-                'jumlah'        => 280000,
-                'tanggal_bayar' => null,
-                'status'        => 'Belum',
-                'jenis'         => 'Pendaftaran',
-            ]);
+        if ($paymentData) {
+            if ($paymentData->status !== 'Lunas' || empty($paymentData->tanggal_bayar)) {
+                $paymentData->update([
+                    'status' => 'Lunas',
+                    'tanggal_bayar' => $paymentData->tanggal_bayar ?: now()->toDateString(),
+                ]);
+                $paymentUpdated = true;
+            }
 
-            $paymentCreated = true;
+            BuktiPembayaran::where('id_pembayaran', $paymentData->id_pembayaran)
+                ->where('status', '!=', 'diterima')
+                ->update(['status' => 'diterima']);
+
+            Siswa::where('id_siswa', $pendaftaran->id_siswa)->update([
+                'status' => 'Active',
+            ]);
         }
     }
 
     return response()->json([
         'success' => true,
-        'message' => 'Validasi berhasil disimpan',
+        'message' => $statusApproval === 'Revisi'
+            ? 'Validasi berhasil disimpan, siswa perlu melakukan perbaikan'
+            : 'Validasi berhasil disimpan',
         'status_approval' => $statusApproval,
+        'status_label' => $statusApproval === 'Menunggu' ? 'Belum Diperiksa' : $statusApproval,
+        'invalid_fields' => $invalidFields,
+        'unsupported_invalid_fields' => $unsupportedInvalidFields,
         'payment_created' => $paymentCreated,
+        'payment_updated' => $paymentUpdated,
         'data_pembayaran' => $paymentData,
-        'data' => $pendaftaran->fresh()
+        'data' => $pendaftaran->fresh(['siswa.orangtua', 'siswa.pembayaran', 'siswa.bukti_pembayaran']),
     ]);
 }
 
+private function normalizeNilaiValidasi($value): string
+{
+    $value = strtolower(trim((string) $value));
+
+    return in_array($value, ['valid', 'true', '1', 'ya', 'yes'])
+        ? 'valid'
+        : 'tidak_valid';
+}
 
 public function pembayaran_admin(Request $request)
 {
@@ -341,7 +416,8 @@ public function Bukti_Diterima($id)
 
         if ($pembayaran) {
             $pembayaran->update([
-                'status' => 'Lunas'
+                'status' => 'Lunas',
+                'tanggal_bayar' => $pembayaran->tanggal_bayar ?: now()->toDateString(),
             ]);
         }
 
@@ -526,7 +602,7 @@ public function performaperSiswa(Request $request, $id_siswa)
     $query = DB::table('performa_siswa')
         ->where('id_siswa', $id_siswa);
 
-    // ✅ filter dari tanggal_penilaian
+    // âœ… filter dari tanggal_penilaian
     if ($bulan) {
         $query->whereMonth('tanggal_penilaian', $bulan);
     }
@@ -597,13 +673,13 @@ public function Rekap_Absensi_PerSiswa(Request $request, $id_siswa)
             'tahun' => $tahun
         ],
 
-        // 🔢 jumlah
+        // ðŸ”¢ jumlah
         'hadir' => $hadir,
         'sakit' => $sakit,
         'izin'  => $izin,
         'total' => $total,
 
-        // 📊 persen
+        // ðŸ“Š persen
         'persen_hadir' => $total ? round(($hadir / $total) * 100, 1) : 0,
         'persen_sakit' => $total ? round(($sakit / $total) * 100, 1) : 0,
         'persen_izin'  => $total ? round(($izin / $total) * 100, 1) : 0,
@@ -844,7 +920,7 @@ public function Tambah_Jadwal(Request $request)
         'jam_mulai' => $request->jam_mulai,
         'jam_selesai' => $request->jam_selesai,
         'lokasi' => $request->lokasi,
-        'id_pelatih' => $request->id_pelatih, // 👈 TAMBAHAN
+        'id_pelatih' => $request->id_pelatih, // ðŸ‘ˆ TAMBAHAN
     ]);
 
     $jadwal->siswa()->attach($request->id_siswa);
@@ -875,7 +951,7 @@ public function Update_Jadwal(Request $request, $id)
         'jam_mulai' => $request->jam_mulai,
         'jam_selesai' => $request->jam_selesai,
         'lokasi' => $request->lokasi,
-        'id_pelatih' => $request->id_pelatih, // 👈 TAMBAHAN
+        'id_pelatih' => $request->id_pelatih, // ðŸ‘ˆ TAMBAHAN
     ]);
 
     $jadwal->siswa()->sync($request->id_siswa);
@@ -1390,7 +1466,7 @@ public function StorePrestasiAdmin(Request $request)
         foreach ($validated['id_siswa'] as $id) {
             $prestasi = Pencapaian::create([
                 'id_siswa' => $id,
-                'id_badge' => null, // 🔥 nonaktifkan badge
+                'id_badge' => null, // ðŸ”¥ nonaktifkan badge
                 'nama_prestasi' => $validated['nama_prestasi'],
                 'tanggal_diberikan' => $validated['tanggal_diberikan'] ?? now()->toDateString(),
             ]);
@@ -1427,7 +1503,7 @@ public function HistoryPrestasiAdmin(Request $request)
         'siswa:id_siswa,nama_siswa,umur',
     ]);
 
-    // 🔍 Filter kategori umur
+    // ðŸ” Filter kategori umur
     if ($request->filled('kategori_umur')) {
         $umur = $this->extractUmurFromKategori($request->kategori_umur);
 
@@ -1438,7 +1514,7 @@ public function HistoryPrestasiAdmin(Request $request)
         }
     }
 
-    // 🔍 Search (tanpa badge)
+    // ðŸ” Search (tanpa badge)
     if ($request->filled('search')) {
         $search = $request->search;
 
@@ -1446,7 +1522,7 @@ public function HistoryPrestasiAdmin(Request $request)
             $q->whereHas('siswa', function ($siswaQuery) use ($search) {
                 $siswaQuery->where('nama_siswa', 'like', '%' . $search . '%');
             })
-            ->orWhere('nama_prestasi', 'like', '%' . $search . '%'); // 🔥 langsung ke field
+            ->orWhere('nama_prestasi', 'like', '%' . $search . '%'); // ðŸ”¥ langsung ke field
         });
     }
 
@@ -1464,12 +1540,12 @@ public function HistoryPrestasiAdmin(Request $request)
                 'id_siswa' => $item->id_siswa,
                 'nama_siswa' => $item->siswa->nama_siswa ?? null,
                 'kategori_umur' => isset($item->siswa->umur) ? 'U-' . $item->siswa->umur : null,
-                'nama_prestasi' => $item->nama_prestasi, // 🔥 FIX
+                'nama_prestasi' => $item->nama_prestasi, // ðŸ”¥ FIX
                 'tanggal_diberikan' => $item->tanggal_diberikan,
             ];
         });
 
-    // 🔽 Filter dropdown kategori umur
+    // ðŸ”½ Filter dropdown kategori umur
     $kategoriUmur = Siswa::select('umur')
         ->distinct()
         ->orderBy('umur')
@@ -1519,3 +1595,4 @@ private function extractUmurFromKategori(?string $kategoriUmur): ?int
             'message' => 'Data admin tidak ditemukan'
         ], 404);
     }
+
