@@ -101,6 +101,15 @@ public function daftar_siswa(Request $request)
             'status_approval' => 'Menunggu',
         ]);
 
+        $pembayaran = Pembayaran::create([
+            'id_siswa' => $siswa->id_siswa,
+            'jenis' => 'Pendaftaran',
+            'periode' => date('Y'),
+            'jumlah' => 280000,
+            'tanggal_bayar' => null,
+            'status' => 'Belum',
+        ]);
+
         DB::commit();
 
         return response()->json([
@@ -108,7 +117,8 @@ public function daftar_siswa(Request $request)
             'message' => 'Pendaftaran siswa berhasil',
             'data' => [
                 'siswa' => $siswa,
-                'pendaftaran' => $pendaftaran
+                'pendaftaran' => $pendaftaran,
+                'pembayaran' => $pembayaran,
             ]
         ], 201);
 
