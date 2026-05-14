@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Apr 30, 2026 at 08:52 PM
+-- Generation Time: May 14, 2026 at 03:55 PM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -63,7 +63,6 @@ CREATE TABLE `bukti_pembayaran` (
 --
 
 INSERT INTO `bukti_pembayaran` (`id_bukti_pembayaran`, `id_pembayaran`, `id_siswa`, `periode`, `tanggal_bukti_bayar`, `status`, `bukti_bayar`) VALUES
-(1, 1, 1, '2026', '2026-02-28', 'diterima', 'bukti_pembayaran/AOkneAwIksl5gQtsrAC3E8SfSlBjTc76hhJ5qdww.png'),
 (5, 3, 6, '2026', '2026-03-11', 'Menunggu validasi', 'bukti_pembayaran/KWETTetJ555HReE2TXzbhtzOWiYEa08BkltYvoU0.png'),
 (7, 5, 8, '2026', '2026-03-11', 'Menunggu validasi', 'bukti_pembayaran/VMrhbJVyKgFOtF9TXUyk9WNTDJVEQB3nkAJ0Ha4x.png'),
 (8, 7, 11, '2026', '2026-04-14', 'diterima', 'bukti_pembayaran/iTgumad28N1q5piD3oRD0CxE2yCLGin9W2ye81L9.png');
@@ -111,21 +110,6 @@ CREATE TABLE `failed_jobs` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `feedback`
---
-
-CREATE TABLE `feedback` (
-  `id_feedback` int(11) NOT NULL,
-  `id_pelatih` int(11) NOT NULL,
-  `id_ortu` int(11) NOT NULL,
-  `id_siswa` int(11) NOT NULL,
-  `isi_feedback` varchar(500) DEFAULT NULL,
-  `tanggal_feedback` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `jadwal_latihan`
 --
 
@@ -169,19 +153,6 @@ INSERT INTO `jadwal_siswa` (`id_jadwal_siswa`, `id_jadwal`, `id_siswa`) VALUES
 -- --------------------------------------------------------
 
 --
--- Table structure for table `master_badge`
---
-
-CREATE TABLE `master_badge` (
-  `id_badge` int(11) NOT NULL,
-  `nama_badge` varchar(100) DEFAULT NULL,
-  `deskripsi` varchar(500) DEFAULT NULL,
-  `icon_badge` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `migrations`
 --
 
@@ -200,7 +171,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (2, '2014_10_12_100000_create_password_reset_tokens_table', 1),
 (3, '2019_08_19_000000_create_failed_jobs_table', 1),
 (4, '2019_12_14_000001_create_personal_access_tokens_table', 1),
-(5, '2026_04_30_174307_add_group_id_to_promosi_table', 2);
+(5, '2026_04_30_174307_add_group_id_to_promosi_table', 2),
+(6, '2026_05_03_175552_add_verification_token_to_users_table', 3);
 
 -- --------------------------------------------------------
 
@@ -278,7 +250,8 @@ INSERT INTO `orang_tua` (`id_ortu`, `nama_ortu`, `email`, `password`, `no_hp`, `
 (1, 'Heliyarti', 'Heliyarti@gmail.com', '$2y$10$Fs/5g.i7eaDAjjfQZ97ZjelcLJgjAsdPjkynb.gcl9pNmKQFCndDC', '089649209010', 4),
 (10, 'Fakrul', 'fakrul@gmail.com', '$2y$10$C9oh9I4C.jGImA2KJlr3R.XcgUXY0AEkV.uU1t6YO8cpj67ek95Wm', '0085671295', 16),
 (11, 'Suhatri', 'Suhartissb@gmail.com', '$2y$10$IjD/AYFCiuVPlFuz5kFH/.ZB5R1ofbN7pkbBB2AdiIV7oCGklEyFW', '089145607090', 31),
-(12, 'Zulyfitriani', 'Zulyfitrianissb@gmail.com', '$2y$10$MkVDlC852V7xSyJmIh1X2eDIcp3v60zEIWvXITLkqyLrbJX1EYDeC', '08963929922', 32);
+(12, 'Zulyfitriani', 'Zulyfitrianissb@gmail.com', '$2y$10$MkVDlC852V7xSyJmIh1X2eDIcp3v60zEIWvXITLkqyLrbJX1EYDeC', '08963929922', 32),
+(37, 'Edison H', 'bagusffhx@gmail.com', '$2y$10$4EdfoTtCSCOFzy1.WXniQu3ww9OLPSzpY4PSKmy1oksiJvtTv1cxi', '082387469365', 57);
 
 -- --------------------------------------------------------
 
@@ -291,6 +264,13 @@ CREATE TABLE `password_reset_tokens` (
   `token` varchar(255) NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `password_reset_tokens`
+--
+
+INSERT INTO `password_reset_tokens` (`email`, `token`, `created_at`) VALUES
+('Suhartissb@gmail.com', '$2y$10$69z2YK1z1xubKbzwNwnrRu3pF07wLTBjvp6F1tiiSkCvVgyCMWO3.', '2026-05-03 06:34:57');
 
 -- --------------------------------------------------------
 
@@ -335,7 +315,6 @@ CREATE TABLE `pembayaran` (
 --
 
 INSERT INTO `pembayaran` (`id_pembayaran`, `id_siswa`, `periode`, `jumlah`, `tanggal_bayar`, `status`, `jenis`) VALUES
-(1, 1, '2026', 200000.00, '2026-02-28', 'Lunas', 'Pendaftaran'),
 (3, 6, '2026', 200000.00, '2026-03-11', 'Belum', 'Pendaftaran'),
 (5, 8, '2026', 280000.00, '2026-03-11', 'Belum', 'Pendaftaran'),
 (7, 11, '2026', 280000.00, '2026-04-14', 'Lunas', 'Pendaftaran');
@@ -360,8 +339,7 @@ CREATE TABLE `pencapaian` (
 
 INSERT INTO `pencapaian` (`id_pencapaian`, `id_siswa`, `id_badge`, `nama_prestasi`, `tanggal_diberikan`) VALUES
 (1, 9, NULL, 'Juara Turnamen Sepak Bola Antar Kota', '2026-05-01'),
-(2, 11, NULL, 'Juara Turnamen Sepak Bola Antar Kota', '2026-05-01'),
-(3, 1, NULL, 'Juara Turnamen Sepak Bola Antar Sekolah', '2026-05-01');
+(2, 11, NULL, 'Juara Turnamen Sepak Bola Antar Kota', '2026-05-01');
 
 -- --------------------------------------------------------
 
@@ -389,7 +367,6 @@ CREATE TABLE `pendaftaran` (
 --
 
 INSERT INTO `pendaftaran` (`id_pendaftaran`, `id_siswa`, `tanggal_daftar`, `status_approval`, `val_nama_siswa`, `val_nama_ibu`, `val_nama_ayah`, `val_umur`, `val_akta`, `val_kk`, `val_rapor`, `val_foto`) VALUES
-(1, 1, '2026-02-28', 'Disetujui', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid'),
 (6, 6, '2026-03-07', 'Disetujui', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid'),
 (8, 8, '2026-03-11', 'Disetujui', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid'),
 (9, 9, '2026-04-12', 'Menunggu', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
@@ -443,12 +420,17 @@ CREATE TABLE `personal_access_tokens` (
 --
 
 INSERT INTO `personal_access_tokens` (`id`, `tokenable_type`, `tokenable_id`, `name`, `token`, `abilities`, `last_used_at`, `expires_at`, `created_at`, `updated_at`) VALUES
-(2, 'App\\Models\\User', 31, 'api-token', 'bb2931b9fb081d56de21a83e367ca3abcdf7239dd8154c3efeb970ee6546aa89', '[\"*\"]', '2026-04-11 23:55:41', NULL, '2026-04-11 23:35:09', '2026-04-11 23:55:41'),
 (11, 'App\\Models\\User', 16, 'auth_token', '0b80ef8232c8109feff47e5f8b21712a53eb1455fbf9a1f5c81cc0da7e5f6545', '[\"*\"]', '2026-04-13 21:35:58', NULL, '2026-04-13 21:22:17', '2026-04-13 21:35:58'),
 (15, 'App\\Models\\User', 32, 'auth_token', 'd688ac5070e2efec22c0dbafde27069ad90cf519b3b72a458c8d959e196ff319', '[\"*\"]', '2026-04-14 11:50:36', NULL, '2026-04-14 00:18:32', '2026-04-14 11:50:36'),
 (21, 'App\\Models\\User', 30, 'auth_token', '637ac2af4ff36917cae928051e304245bb6459e069377cea9b344de8592010c3', '[\"*\"]', '2026-04-16 03:57:19', NULL, '2026-04-16 01:42:42', '2026-04-16 03:57:19'),
-(22, 'App\\Models\\User', 29, 'auth_token', 'ef8f8b06bc2deac7cb050b19701f591380d4ee508e8f316c32393524b4d94757', '[\"*\"]', '2026-04-16 10:23:48', NULL, '2026-04-16 03:56:00', '2026-04-16 10:23:48'),
-(27, 'App\\Models\\User', 7, 'auth_token', '0f3055b1dfb61f7369fd594e28a572146c3b5dd5799cfaa63553197e6b170b5a', '[\"*\"]', '2026-04-30 11:51:13', NULL, '2026-04-30 10:29:46', '2026-04-30 11:51:13');
+(33, 'App\\Models\\User', 31, 'auth_token', '72e6fad0ba9e27749241f8d3f549aa3290f752add4c5b94981ef4cc7e1c3dcda', '[\"*\"]', '2026-05-03 07:05:35', NULL, '2026-05-03 06:52:56', '2026-05-03 07:05:35'),
+(34, 'App\\Models\\User', 34, 'auth_token', '9bbac02a88d61fc8b60e6112f1ba15a15294445fc170f8bcbc75f98c55b1c63f', '[\"*\"]', NULL, NULL, '2026-05-03 08:41:51', '2026-05-03 08:41:51'),
+(37, 'App\\Models\\User', 50, 'auth_token', 'e051a25068219b71e5fa21a130f9223f12224de050a4f6306c871fbd7c7f98a0', '[\"*\"]', NULL, NULL, '2026-05-04 11:26:40', '2026-05-04 11:26:40'),
+(38, 'App\\Models\\User', 53, 'auth_token', 'dadd6ff3f0451e7700aee1209b074827b9648f63dfb2790868567f049812e156', '[\"*\"]', NULL, NULL, '2026-05-04 11:35:09', '2026-05-04 11:35:09'),
+(39, 'App\\Models\\User', 29, 'auth_token', '2fd67b352accd829bcaffa5b6148da9870d781c0e6a5f869d1f6927d9a3268d1', '[\"*\"]', '2026-05-04 12:08:18', NULL, '2026-05-04 11:35:34', '2026-05-04 12:08:18'),
+(40, 'App\\Models\\User', 55, 'auth_token', 'b016ca1d8c754faf5b8159f4c12f7ad818b588e158ec6a0ed5954a8908c03102', '[\"*\"]', NULL, NULL, '2026-05-08 03:47:00', '2026-05-08 03:47:00'),
+(47, 'App\\Models\\User', 56, 'auth_token', '8d6c5ac868cc805723866ba81eb67d93f6a9d7a97c3b3e48edb5d806aa2f9812', '[\"*\"]', '2026-05-08 04:51:51', NULL, '2026-05-08 04:42:53', '2026-05-08 04:51:51'),
+(49, 'App\\Models\\User', 7, 'auth_token', '634dcaac41884a2ff5b3111ace10e87b63fdf5d58cee094e7435a432d3ac5777', '[\"*\"]', NULL, NULL, '2026-05-14 06:10:35', '2026-05-14 06:10:35');
 
 -- --------------------------------------------------------
 
@@ -513,7 +495,6 @@ CREATE TABLE `promosi` (
 --
 
 INSERT INTO `promosi` (`id_promosi`, `group_id`, `id_siswa`, `judul`, `isi_promosi`, `tanggal_promosi`, `dibuat_oleh`, `foto_promosi`, `kategori`) VALUES
-(16, 'a59a5aa9-0826-4954-8b70-a91395df8175', 1, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/ZmEsI61qu0NKKKNMg1XTJ5MLSYbBdC2yChi5Cq6N.png', 'Berita'),
 (17, 'a59a5aa9-0826-4954-8b70-a91395df8175', 9, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/ZmEsI61qu0NKKKNMg1XTJ5MLSYbBdC2yChi5Cq6N.png', 'Berita'),
 (18, 'a59a5aa9-0826-4954-8b70-a91395df8175', 11, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/ZmEsI61qu0NKKKNMg1XTJ5MLSYbBdC2yChi5Cq6N.png', 'Berita'),
 (19, 'a59a5aa9-0826-4954-8b70-a91395df8175', 8, 'Persiapan Latihan Rutin Sebelum Liga', 'Program latihan rutin terus dimatangkan menjelang agenda liga berikutnya. Fokus latihan kali ini diarahkan pada transisi...', '2026-04-30', 1, 'promosi/ZmEsI61qu0NKKKNMg1XTJ5MLSYbBdC2yChi5Cq6N.png', 'Berita'),
@@ -573,7 +554,6 @@ CREATE TABLE `siswa` (
 --
 
 INSERT INTO `siswa` (`id_siswa`, `nama_siswa`, `nama_ibu`, `nama_ayah`, `umur`, `id_ortu`, `user_id`, `akta_kelahiran`, `kartu_keluarga`, `rapor`, `pas_photo_3x4`, `status`) VALUES
-(1, 'Bagus Fachfirli', 'Heliyarti', 'Edison', 12, 1, 4, 'QhShHdqk0nad6gL3DBhMpo8ncCUIGAbdy7CmVxan.png', 'Pa4tJXxoYmOz7SM6h4ucZcTXBmLkCmv864x9Gxlm.png', 'TFZf5MaVenLw79kBzsmm5935YPrRuvHZqczuDw6N.png', 'nZHIpkaqXXR8NrpaZkKfH1YbJyiMrHYhXv8aayVZ.png', 'Active'),
 (6, 'Zaky Fahreza', 'Nurisman', 'Fakrul', 10, 10, 16, '29xVlNjCKDDMhPmzgKC0J0JNJvYH0ZbLcLfIXkSI.png', 'KC8QKueWfVhczzwHHlQ82fRAIecIPYR2miAGFBxw.png', '2LQvoFRvxJcHjd36eghLNPmRL8AfsLmvtzNEymnw.png', 'UK1EfmNsepIxvPSfWPfvUoaY5zAOv7KlHtUyDYy2.png', 'Inactive'),
 (8, 'Rinov Ramadhans', 'Nurisman', 'Fakrul', 10, 10, 16, 'T2jDZHOKqLLH2ZS5ComDIXxOzmE7dYfnB4I7LhKM.png', '4B0Yyjd4CAESPUNA7ZD6BbLNmHzBLurep7IKpTok.png', 'ok4qpizm9OtdHWovWq9CmLwRc23QV6fXXEmnFJ7t.png', 's2E7KcQcjIWIxyonmYdDj29gB9GEpwBbiS0VvqUM.png', 'Inactive'),
 (9, 'Ibrahim Mufid Zaki', 'Suharti', 'Suharti', 16, 11, 31, 'akta/NxmUhMMUnEto6JyJ2USVLCPM9CpcfA2PqqGhpVTo.png', 'kk/HdKlHWJZP2Vh2FDPXMAzaWl7XjqsEsLsuGdaEVhh.png', 'rapor/kd87yeIq2FxpQxUc3lrGg5wHf9b8cqHvwdvOy5eT.png', 'foto/44RxOP51GZYBabry2K8VEiLt8Nrn7qjggiHXLoOc.png', 'Inactive'),
@@ -590,6 +570,7 @@ CREATE TABLE `users` (
   `name` varchar(255) NOT NULL,
   `email` varchar(255) NOT NULL,
   `email_verified_at` timestamp NULL DEFAULT NULL,
+  `verification_token` varchar(255) DEFAULT NULL,
   `password` varchar(255) NOT NULL,
   `remember_token` varchar(100) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -601,14 +582,15 @@ CREATE TABLE `users` (
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `name`, `email`, `email_verified_at`, `password`, `remember_token`, `created_at`, `updated_at`, `role`) VALUES
-(4, 'Heliyarti', 'Heliyarti@gmail.com', NULL, '$2y$10$O..ocw/0lV7G2O8bGh0sYuxO/7r8O.wXlxbdJZA8fcqcQiaA1cl6W', NULL, '2026-01-21 01:47:30', '2026-01-21 04:14:43', 'orang_tua'),
-(7, 'Admin_SSB1', 'adminssb@gmail.com', NULL, '$2y$10$7gp2WxRU4xKsN2FkZnvH6uPFtHedaB9dJzk.WFWPF.yWanvQek3W6', NULL, '2026-01-25 02:02:36', '2026-01-25 02:02:36', 'admin'),
-(16, 'Fakrul', 'fakrul@gmail.com', NULL, '$2y$10$P0.aYUkwKwE6vC3fsOOWs.x1IZCqvnLAUF9mj2qII4UxIunTo5fX6', NULL, '2026-03-02 03:44:07', '2026-03-02 03:44:07', 'orang_tua'),
-(29, 'Bambang', 'Bambang@gmail.com', NULL, '$2y$10$j4h4U7OYdUni8dn.3KKpJO9bb1hhKff1dNm3ip7wV3xu9anZJM5Zm', NULL, '2026-04-02 06:49:55', '2026-04-02 06:49:55', 'pelatih'),
-(30, 'Zulfahmi', 'zulfahmi@gmail.com', NULL, '$2y$10$t7NyR/p1xi/lr5XQpkEqIO4RVeIqyzy1f8pSeLj5sXD41yJJ/M8hi', NULL, '2026-04-09 12:32:22', '2026-04-09 12:32:22', 'pelatih'),
-(31, 'Suhatri', 'Suhartissb@gmail.com', NULL, '$2y$10$MjjwPUVQWy0/zj.aUTZM8.mn1VbtktlygDt.H5EWDrtbire/ohd5m', NULL, '2026-04-11 09:06:13', '2026-04-11 09:06:13', 'orang_tua'),
-(32, 'Zulyfitriani', 'Zulyfitrianissb@gmail.com', NULL, '$2y$10$d9tE9CkvZ5vNeHOJkU5g0e/1IFfjryBlyxyuWZOPeUKiqiDN7IKrK', NULL, '2026-04-13 16:36:47', '2026-04-13 16:36:47', 'orang_tua');
+INSERT INTO `users` (`id`, `name`, `email`, `email_verified_at`, `verification_token`, `password`, `remember_token`, `created_at`, `updated_at`, `role`) VALUES
+(4, 'Heliyarti', 'Heliyarti@gmail.com', NULL, NULL, '$2y$10$O..ocw/0lV7G2O8bGh0sYuxO/7r8O.wXlxbdJZA8fcqcQiaA1cl6W', NULL, '2026-01-21 01:47:30', '2026-01-21 04:14:43', 'orang_tua'),
+(7, 'Admin_SSB1', 'adminssb@gmail.com', NULL, NULL, '$2y$10$7gp2WxRU4xKsN2FkZnvH6uPFtHedaB9dJzk.WFWPF.yWanvQek3W6', NULL, '2026-01-25 02:02:36', '2026-01-25 02:02:36', 'admin'),
+(16, 'Fakrul', 'fakrul@gmail.com', NULL, NULL, '$2y$10$P0.aYUkwKwE6vC3fsOOWs.x1IZCqvnLAUF9mj2qII4UxIunTo5fX6', NULL, '2026-03-02 03:44:07', '2026-03-02 03:44:07', 'orang_tua'),
+(29, 'Bambang', 'Bambang@gmail.com', NULL, NULL, '$2y$10$j4h4U7OYdUni8dn.3KKpJO9bb1hhKff1dNm3ip7wV3xu9anZJM5Zm', NULL, '2026-04-02 06:49:55', '2026-04-02 06:49:55', 'pelatih'),
+(30, 'Zulfahmi', 'zulfahmi@gmail.com', NULL, NULL, '$2y$10$t7NyR/p1xi/lr5XQpkEqIO4RVeIqyzy1f8pSeLj5sXD41yJJ/M8hi', NULL, '2026-04-09 12:32:22', '2026-04-09 12:32:22', 'pelatih'),
+(31, 'Suhatri', 'Suhartissb@gmail.com', NULL, NULL, '$2y$10$MbFCXpptxPdAdiKwn3t2Muhh65yly2hmpxWHETIYtPCYEbBY9hlIq', NULL, '2026-04-11 09:06:13', '2026-05-03 06:50:12', 'orang_tua'),
+(32, 'Zulyfitriani', 'Zulyfitrianissb@gmail.com', NULL, NULL, '$2y$10$d9tE9CkvZ5vNeHOJkU5g0e/1IFfjryBlyxyuWZOPeUKiqiDN7IKrK', NULL, '2026-04-13 16:36:47', '2026-04-13 16:36:47', 'orang_tua'),
+(57, 'Edison H', 'bagusffhx@gmail.com', NULL, 'oZJvShZEIl5WrDABDdvclL8keznlrGJmFulmvGw0xFJJKWXvi5ORYJwDSZgmpWp0', '$2y$10$SZhEiCxuX2.HIfaXitAqsOBHfupwPM30N3Vv31v.6d/iHtH9Vs4Ci', NULL, '2026-05-14 06:29:37', '2026-05-14 06:29:37', 'orang_tua');
 
 --
 -- Indexes for dumped tables
@@ -646,15 +628,6 @@ ALTER TABLE `failed_jobs`
   ADD UNIQUE KEY `failed_jobs_uuid_unique` (`uuid`);
 
 --
--- Indexes for table `feedback`
---
-ALTER TABLE `feedback`
-  ADD PRIMARY KEY (`id_feedback`),
-  ADD KEY `id_pelatih` (`id_pelatih`),
-  ADD KEY `id_ortu` (`id_ortu`),
-  ADD KEY `id_siswa` (`id_siswa`);
-
---
 -- Indexes for table `jadwal_latihan`
 --
 ALTER TABLE `jadwal_latihan`
@@ -668,12 +641,6 @@ ALTER TABLE `jadwal_siswa`
   ADD PRIMARY KEY (`id_jadwal_siswa`),
   ADD KEY `fk_jadwal` (`id_jadwal`),
   ADD KEY `fk_siswa` (`id_siswa`);
-
---
--- Indexes for table `master_badge`
---
-ALTER TABLE `master_badge`
-  ADD PRIMARY KEY (`id_badge`);
 
 --
 -- Indexes for table `migrations`
@@ -746,7 +713,6 @@ ALTER TABLE `pendaftaran`
 -- Indexes for table `performa_siswa`
 --
 ALTER TABLE `performa_siswa`
-  ADD PRIMARY KEY (`id_performa`),
   ADD KEY `id_siswa` (`id_siswa`);
 
 --
@@ -825,7 +791,7 @@ ALTER TABLE `admin`
 -- AUTO_INCREMENT for table `bukti_pembayaran`
 --
 ALTER TABLE `bukti_pembayaran`
-  MODIFY `id_bukti_pembayaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id_bukti_pembayaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `catatan_pelatih`
@@ -840,12 +806,6 @@ ALTER TABLE `failed_jobs`
   MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `feedback`
---
-ALTER TABLE `feedback`
-  MODIFY `id_feedback` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- AUTO_INCREMENT for table `jadwal_latihan`
 --
 ALTER TABLE `jadwal_latihan`
@@ -858,16 +818,10 @@ ALTER TABLE `jadwal_siswa`
   MODIFY `id_jadwal_siswa` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT for table `master_badge`
---
-ALTER TABLE `master_badge`
-  MODIFY `id_badge` int(11) NOT NULL AUTO_INCREMENT;
-
---
 -- AUTO_INCREMENT for table `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `notifikasi`
@@ -885,7 +839,7 @@ ALTER TABLE `notifikasi_terkirim`
 -- AUTO_INCREMENT for table `orang_tua`
 --
 ALTER TABLE `orang_tua`
-  MODIFY `id_ortu` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id_ortu` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT for table `pelatih`
@@ -897,7 +851,7 @@ ALTER TABLE `pelatih`
 -- AUTO_INCREMENT for table `pembayaran`
 --
 ALTER TABLE `pembayaran`
-  MODIFY `id_pembayaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id_pembayaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `pencapaian`
@@ -909,19 +863,13 @@ ALTER TABLE `pencapaian`
 -- AUTO_INCREMENT for table `pendaftaran`
 --
 ALTER TABLE `pendaftaran`
-  MODIFY `id_pendaftaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
-
---
--- AUTO_INCREMENT for table `performa_siswa`
---
-ALTER TABLE `performa_siswa`
-  MODIFY `id_performa` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id_pendaftaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `personal_access_tokens`
 --
 ALTER TABLE `personal_access_tokens`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
 
 --
 -- AUTO_INCREMENT for table `presensi`
@@ -951,13 +899,13 @@ ALTER TABLE `riwayat_promosi`
 -- AUTO_INCREMENT for table `siswa`
 --
 ALTER TABLE `siswa`
-  MODIFY `id_siswa` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id_siswa` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=58;
 
 --
 -- Constraints for dumped tables
@@ -982,14 +930,6 @@ ALTER TABLE `bukti_pembayaran`
 ALTER TABLE `catatan_pelatih`
   ADD CONSTRAINT `fk_cttn_pelatih` FOREIGN KEY (`id_pelatih`) REFERENCES `pelatih` (`id_pelatih`),
   ADD CONSTRAINT `fk_cttn_siswa` FOREIGN KEY (`id_siswa`) REFERENCES `siswa` (`id_siswa`);
-
---
--- Constraints for table `feedback`
---
-ALTER TABLE `feedback`
-  ADD CONSTRAINT `feedback_ibfk_1` FOREIGN KEY (`id_pelatih`) REFERENCES `pelatih` (`id_pelatih`) ON DELETE CASCADE,
-  ADD CONSTRAINT `feedback_ibfk_2` FOREIGN KEY (`id_ortu`) REFERENCES `orang_tua` (`id_ortu`) ON DELETE CASCADE,
-  ADD CONSTRAINT `feedback_ibfk_3` FOREIGN KEY (`id_siswa`) REFERENCES `siswa` (`id_siswa`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `jadwal_latihan`
@@ -1049,7 +989,7 @@ ALTER TABLE `pendaftaran`
 -- Constraints for table `performa_siswa`
 --
 ALTER TABLE `performa_siswa`
-  ADD CONSTRAINT `performa_siswa_ibfk_1` FOREIGN KEY (`id_siswa`) REFERENCES `siswa` (`id_siswa`) ON DELETE CASCADE;
+  ADD CONSTRAINT `performa_siswa_ibfk_1` FOREIGN KEY (`id_siswa`) REFERENCES `siswa` (`id_siswa`);
 
 --
 -- Constraints for table `presensi`
