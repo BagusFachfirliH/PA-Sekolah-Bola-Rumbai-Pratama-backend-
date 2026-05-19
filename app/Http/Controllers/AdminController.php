@@ -170,8 +170,20 @@ public function submitValidasi(Request $request, $id)
         'upload_fotocopy_rapor' => 'val_rapor',
         'upload_fotocopy_rapor_biodata' => 'val_rapor',
         'upload_pas_foto_warna_3x4' => 'val_foto',
+        'bukti' => null,
         'bukti_pembayaran' => null,
+        'bukti_pembayaran_pendaftaran' => null,
+        'bukti_bayar' => null,
+        'upload_bukti_pembayaran' => null,
         'upload_bukti_pembayaran_pendaftaran' => null,
+    ];
+    $paymentProofFields = [
+        'bukti',
+        'bukti_pembayaran',
+        'bukti_pembayaran_pendaftaran',
+        'bukti_bayar',
+        'upload_bukti_pembayaran',
+        'upload_bukti_pembayaran_pendaftaran',
     ];
 
     $fields = array_values(array_unique($fieldMap));
@@ -186,9 +198,21 @@ public function submitValidasi(Request $request, $id)
         ->values()
         ->all();
     $unsupportedInvalidFields = $requestedInvalidFields
-        ->filter(fn ($field) => array_key_exists($field, $fieldMap) && is_null($fieldMap[$field]))
+        ->filter(fn ($field) => array_key_exists($field, $fieldMap) && is_null($fieldMap[$field]) && !in_array($field, $paymentProofFields))
         ->values()
         ->all();
+    $invalidPaymentFields = $requestedInvalidFields
+        ->filter(fn ($field) => in_array($field, $paymentProofFields))
+        ->values()
+        ->all();
+
+    foreach ($paymentProofFields as $paymentProofField) {
+        if ($request->has($paymentProofField) && $this->normalizeNilaiValidasi($request->input($paymentProofField)) === 'tidak_valid') {
+            $invalidPaymentFields[] = $paymentProofField;
+        }
+    }
+
+    $invalidPaymentFields = collect($invalidPaymentFields)->unique()->values()->all();
 
     $hasManualValidationValues = collect($fields)
         ->contains(fn ($field) => $request->has($field));
@@ -210,7 +234,7 @@ public function submitValidasi(Request $request, $id)
 
     if (in_array($action, ['ditolak', 'tolak', 'reject'])) {
         $statusApproval = 'Ditolak';
-    } elseif (in_array($action, ['revisi', 'tidak_valid', 'invalid']) || !empty($unsupportedInvalidFields)) {
+    } elseif (in_array($action, ['revisi', 'tidak_valid', 'invalid']) || !empty($unsupportedInvalidFields) || !empty($invalidPaymentFields)) {
         $statusApproval = 'Revisi';
     } elseif ($values->every(fn ($value) => $value === 'valid')) {
         $statusApproval = 'Disetujui';
@@ -223,30 +247,58 @@ public function submitValidasi(Request $request, $id)
 
     $paymentCreated = false;
     $paymentUpdated = false;
-    $paymentData = null;
+    $paymentData = Pembayaran::where('id_siswa', $pendaftaran->id_siswa)
+        ->where('jenis', 'Pendaftaran')
+        ->first();
+    $paymentProofUpdated = false;
 
-    if ($statusApproval === 'Disetujui') {
-        $paymentData = Pembayaran::where('id_siswa', $pendaftaran->id_siswa)
-            ->where('jenis', 'Pendaftaran')
+    if (!empty($invalidPaymentFields) && $paymentData) {
+        $latestProof = BuktiPembayaran::where('id_pembayaran', $paymentData->id_pembayaran)
+            ->orderBy('id_bukti_pembayaran', 'desc')
             ->first();
 
-        if ($paymentData) {
-            if ($paymentData->status !== 'Lunas' || empty($paymentData->tanggal_bayar)) {
-                $paymentData->update([
-                    'status' => 'Lunas',
-                    'tanggal_bayar' => $paymentData->tanggal_bayar ?: now()->toDateString(),
-                ]);
-                $paymentUpdated = true;
-            }
-
-            BuktiPembayaran::where('id_pembayaran', $paymentData->id_pembayaran)
-                ->where('status', '!=', 'diterima')
-                ->update(['status' => 'diterima']);
-
-            Siswa::where('id_siswa', $pendaftaran->id_siswa)->update([
-                'status' => 'Active',
+        if ($latestProof && $latestProof->status !== 'ditolak') {
+            $latestProof->update(['status' => 'ditolak']);
+            $paymentProofUpdated = true;
+        } elseif (!$latestProof) {
+            BuktiPembayaran::create([
+                'id_pembayaran' => $paymentData->id_pembayaran,
+                'id_siswa' => $pendaftaran->id_siswa,
+                'periode' => $paymentData->periode,
+                'tanggal_bukti_bayar' => null,
+                'status' => 'ditolak',
+                'bukti_bayar' => null,
             ]);
+            $paymentProofUpdated = true;
         }
+
+        if ($paymentData->status !== 'Belum' || !empty($paymentData->tanggal_bayar)) {
+            $paymentData->update([
+                'status' => 'Belum',
+                'tanggal_bayar' => null,
+            ]);
+            $paymentUpdated = true;
+        }
+
+        Siswa::where('id_siswa', $pendaftaran->id_siswa)->update([
+            'status' => 'Inactive',
+        ]);
+    } elseif ($statusApproval === 'Disetujui' && $paymentData) {
+        if ($paymentData->status !== 'Lunas' || empty($paymentData->tanggal_bayar)) {
+            $paymentData->update([
+                'status' => 'Lunas',
+                'tanggal_bayar' => $paymentData->tanggal_bayar ?: now()->toDateString(),
+            ]);
+            $paymentUpdated = true;
+        }
+
+        $paymentProofUpdated = BuktiPembayaran::where('id_pembayaran', $paymentData->id_pembayaran)
+            ->where('status', '!=', 'diterima')
+            ->update(['status' => 'diterima']) > 0;
+
+        Siswa::where('id_siswa', $pendaftaran->id_siswa)->update([
+            'status' => 'Active',
+        ]);
     }
 
     return response()->json([
@@ -257,9 +309,11 @@ public function submitValidasi(Request $request, $id)
         'status_approval' => $statusApproval,
         'status_label' => $statusApproval === 'Menunggu' ? 'Belum Diperiksa' : $statusApproval,
         'invalid_fields' => $invalidFields,
+        'invalid_payment_fields' => $invalidPaymentFields,
         'unsupported_invalid_fields' => $unsupportedInvalidFields,
         'payment_created' => $paymentCreated,
         'payment_updated' => $paymentUpdated,
+        'payment_proof_updated' => $paymentProofUpdated,
         'data_pembayaran' => $paymentData,
         'data' => $pendaftaran->fresh(['siswa.orangtua', 'siswa.pembayaran', 'siswa.bukti_pembayaran']),
     ]);
