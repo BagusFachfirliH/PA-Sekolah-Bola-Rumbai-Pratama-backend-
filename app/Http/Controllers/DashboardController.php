@@ -45,10 +45,18 @@ public function siswaDashboard(Request $request)
         ], 403);
     }
 
-    // 🔎 AMBIL SISWA
-    $selectedChildId = session('id_siswa');
+    // 🔎 AMBIL SISWA BERDASARKAN ANAK YANG DIPILIH DI setAnak
+    $selectedChildId = $request->id_siswa ?? session('id_siswa');
+    $orangTua = OrangTua::where('user_id', $user->id)->first();
 
-    $siswaQuery = $user->siswa();
+    if (!$orangTua) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Data orang tua tidak ditemukan'
+        ], 404);
+    }
+
+    $siswaQuery = Siswa::where('id_ortu', $orangTua->id_ortu);
 
     if ($selectedChildId) {
         $siswaQuery->where('id_siswa', $selectedChildId);
@@ -59,9 +67,13 @@ public function siswaDashboard(Request $request)
     if (!$siswa) {
         return response()->json([
             'status' => false,
-            'message' => 'Data siswa tidak ditemukan'
+            'message' => $selectedChildId
+                ? 'Anak yang dipilih tidak ditemukan atau tidak terkait dengan akun orang tua ini'
+                : 'Silakan pilih anak terlebih dahulu'
         ], 404);
     }
+
+    session(['id_siswa' => $siswa->id_siswa]);
 
     // 💰 PEMBAYARAN
     $pembayaranBelum = $siswa->pembayaran()
@@ -136,6 +148,8 @@ public function siswaDashboard(Request $request)
         'message' => 'Dashboard siswa',
         'data' => [
             'nama_siswa' => $siswa->nama_siswa,
+            'id_siswa' => $siswa->id_siswa,
+            'selected_child_id' => $siswa->id_siswa,
             'userName' => $user->name,
             'status_siswa' => $siswa->status,
 
