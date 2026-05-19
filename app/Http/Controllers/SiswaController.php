@@ -192,7 +192,24 @@ public function revisi_pendaftaran($id_siswa)
 {
     $pendaftaran = Pendaftaran_Siswa::with('siswa')
         ->where('id_siswa', $id_siswa)
-        ->firstOrFail();
+        ->first();
+
+    if (!$pendaftaran) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Data pendaftaran tidak ditemukan untuk id_siswa tersebut',
+            'id_siswa' => $id_siswa,
+        ], 404);
+    }
+
+    $pembayaranPendaftaran = Pembayaran::where('id_siswa', $id_siswa)
+        ->where('jenis', 'Pendaftaran')
+        ->first();
+    $buktiPembayaranTerakhir = $pembayaranPendaftaran
+        ? BuktiPembayaran::where('id_pembayaran', $pembayaranPendaftaran->id_pembayaran)
+            ->orderBy('id_bukti_pembayaran', 'desc')
+            ->first()
+        : null;
 
     $invalidIdentityFields = [];
     $invalidUploadFields = [];
@@ -207,12 +224,18 @@ public function revisi_pendaftaran($id_siswa)
     if ($pendaftaran->val_akta == 'tidak_valid') $invalidUploadFields[] = 'akta_kelahiran';
     if ($pendaftaran->val_kk == 'tidak_valid') $invalidUploadFields[] = 'kartu_keluarga';
     if ($pendaftaran->val_rapor == 'tidak_valid') $invalidUploadFields[] = 'rapor';
-    if ($pendaftaran->val_pasfoto == 'tidak_valid') $invalidUploadFields[] = 'pas_photo_3x4';
+    if ($pendaftaran->val_foto == 'tidak_valid') $invalidUploadFields[] = 'pas_photo_3x4';
+    if ($buktiPembayaranTerakhir && $buktiPembayaranTerakhir->status === 'ditolak') {
+        $invalidUploadFields[] = 'bukti_bayar';
+    }
 
     return response()->json([
         'success' => true,
         'data' => [
             'siswa' => $pendaftaran->siswa,
+            'pendaftaran' => $pendaftaran,
+            'pembayaran_pendaftaran' => $pembayaranPendaftaran,
+            'bukti_pembayaran_terakhir' => $buktiPembayaranTerakhir,
             'invalidIdentityFields' => $invalidIdentityFields,
             'invalidUploadFields' => $invalidUploadFields,
         ]
@@ -232,7 +255,28 @@ public function update_pendaftaran(Request $request, $id_siswa)
         // =========================
         // AMBIL DATA VALIDASI
         // =========================
-        $pendaftaran = Pendaftaran_Siswa::where('id_siswa', $id_siswa)->firstOrFail();
+        $pendaftaran = Pendaftaran_Siswa::where('id_siswa', $id_siswa)->first();
+
+        if (!$pendaftaran) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Data pendaftaran tidak ditemukan untuk id_siswa tersebut',
+                'id_siswa' => $id_siswa,
+            ], 404);
+        }
+
+        $pembayaranPendaftaran = Pembayaran::where('id_siswa', $id_siswa)
+            ->where('jenis', 'Pendaftaran')
+            ->first();
+        $buktiPembayaranTerakhir = $pembayaranPendaftaran
+            ? BuktiPembayaran::where('id_pembayaran', $pembayaranPendaftaran->id_pembayaran)
+                ->orderBy('id_bukti_pembayaran', 'desc')
+                ->first()
+            : null;
+        $buktiPembayaranPerluRevisi = $buktiPembayaranTerakhir
+            && $buktiPembayaranTerakhir->status === 'ditolak';
 
         // =========================
         // VALIDASI DINAMIS
@@ -269,6 +313,11 @@ public function update_pendaftaran(Request $request, $id_siswa)
 
         if ($pendaftaran->val_foto === 'tidak_valid') {
             $rules['pas_photo_3x4'] = 'nullable|file|mimes:jpg,jpeg,png';
+        }
+
+        if ($buktiPembayaranPerluRevisi) {
+            $rules['tanggal_bukti_bayar'] = 'required|date';
+            $rules['bukti_bayar'] = 'required|file|mimes:jpg,jpeg,png,pdf';
         }
 
         // =========================
@@ -323,17 +372,41 @@ public function update_pendaftaran(Request $request, $id_siswa)
             $siswa->pas_photo_3x4 = basename($path);
         }
 
+        if ($buktiPembayaranPerluRevisi && $request->hasFile('bukti_bayar')) {
+            $filePath = $request->file('bukti_bayar')->store('bukti_pembayaran');
+
+            $buktiPembayaranTerakhir->update([
+                'tanggal_bukti_bayar' => $request->tanggal_bukti_bayar,
+                'status' => 'Menunggu validasi',
+                'bukti_bayar' => $filePath,
+            ]);
+
+            if ($pembayaranPendaftaran) {
+                $pembayaranPendaftaran->update([
+                    'status' => 'Belum',
+                    'tanggal_bayar' => $request->tanggal_bukti_bayar,
+                ]);
+            }
+        }
+
         // =========================
         // SAVE
         // =========================
         $siswa->save();
+        $pendaftaran->status_approval = 'Menunggu';
+        $pendaftaran->save();
 
         DB::commit();
 
         return response()->json([
             'success' => true,
             'message' => 'Revisi pendaftaran berhasil diperbarui',
-            'data' => $siswa
+            'data' => [
+                'siswa' => $siswa,
+                'pendaftaran' => $pendaftaran,
+                'pembayaran_pendaftaran' => $pembayaranPendaftaran,
+                'bukti_pembayaran_terakhir' => $buktiPembayaranTerakhir ? $buktiPembayaranTerakhir->fresh() : null,
+            ]
         ]);
 
     } catch (\Exception $e) {
