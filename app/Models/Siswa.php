@@ -102,6 +102,11 @@ public function pencapaian()
     return $this->hasMany(Pencapaian::class, 'id_siswa', 'id_siswa');
 }
 
+public function profil()
+{
+    return $this->hasOne(ProfilSiswa::class, 'id_siswa', 'id_siswa');
+}
+
 public function performa()
 {
     return $this->hasMany(\App\Models\Performa_Siswa::class, 'id_siswa', 'id_siswa');
