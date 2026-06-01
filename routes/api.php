@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\NotifikasiController;
 use App\Http\Controllers\PelatihController;
+use App\Http\Controllers\MenuUtamaController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -146,6 +147,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/admin/prestasi/form', [AdminController::class, 'FormPrestasiAdmin']);
     Route::post('/admin/prestasi/tambah-prestasi', [AdminController::class, 'StorePrestasiAdmin']);
     Route::get('/admin/prestasi/histori', [AdminController::class, 'HistoryPrestasiAdmin']);
+
+    //Profil Siswa (Admin dan Siswa)
+    Route::get('/siswa/profil', [SiswaController::class, 'Profil_Siswa']);
+    Route::get('/admin/profil-siswa/{id}', [AdminController::class, 'Profil_Siswa_Admin']);
+    Route::put('/admin/profil-siswa/update/{id}', [AdminController::class, 'Update_Profil_Siswa_Admin']);
+    Route::put('/siswa/profil/update', [SiswaController::class, 'Update_Profil_Siswa']);
+
+
 
 });
 
