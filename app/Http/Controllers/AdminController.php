@@ -20,6 +20,7 @@ use App\Models\Jadwal_Latihan;
 use App\Models\Promosi;
 use App\Models\Pencapaian;
 use App\Models\MasterBadge;
+use App\Models\ProfilSiswa;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -1525,6 +1526,8 @@ public function StorePrestasiAdmin(Request $request)
                 'tanggal_diberikan' => $validated['tanggal_diberikan'] ?? now()->toDateString(),
             ]);
 
+            $this->syncPrestasiProfil($id);
+
             $prestasiIds[] = $prestasi->id_pencapaian;
         }
 
@@ -1621,6 +1624,163 @@ public function HistoryPrestasiAdmin(Request $request)
     ]);
 }
 
+public function Profil_Siswa_Admin($id)
+{
+    $siswa = Siswa::with(['profil', 'pencapaian.badge'])
+        ->where('id_siswa', $id)
+        ->first();
+
+    if (!$siswa) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Data siswa tidak ditemukan'
+        ], 404);
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Profil siswa berhasil diambil',
+        'data' => $this->formatProfilSiswa($siswa),
+    ]);
+}
+
+public function Update_Profil_Siswa_Admin(Request $request, $id)
+{
+    $siswa = Siswa::with(['profil', 'pencapaian.badge'])
+        ->where('id_siswa', $id)
+        ->first();
+
+    if (!$siswa) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Data siswa tidak ditemukan'
+        ], 404);
+    }
+
+    if (!$siswa->id_ortu) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Data orang tua siswa belum tersedia'
+        ], 422);
+    }
+
+    $validated = $request->validate($this->profilSiswaRules());
+
+    $profilData = array_merge($validated, [
+        'id_ortu' => $siswa->id_ortu,
+    ]);
+
+    if (empty($profilData['foto']) && empty($siswa->profil?->foto)) {
+        $profilData['foto'] = $siswa->pas_photo_3x4;
+    }
+
+    $profilData['prestasi'] = $this->buildPrestasiProfil($siswa->id_siswa);
+
+    $profil = ProfilSiswa::updateOrCreate(
+        ['id_siswa' => $siswa->id_siswa],
+        $profilData
+    );
+
+    $siswa->setRelation('profil', $profil);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Profil siswa berhasil diperbarui',
+        'data' => $this->formatProfilSiswa($siswa),
+    ]);
+}
+
+private function profilSiswaRules(): array
+{
+    return [
+        'nik' => 'nullable|string|max:30',
+        'no_kk' => 'nullable|string|max:30',
+        'nisn' => 'nullable|string|max:30',
+        'tempat_lahir' => 'nullable|string|max:100',
+        'tanggal_lahir' => 'nullable|date',
+        'alamat' => 'nullable|string|max:255',
+        'foto' => 'nullable|string|max:255',
+        'tinggi_badan' => 'nullable|integer|min:1|max:300',
+        'berat_badan' => 'nullable|integer|min:1|max:300',
+    ];
+}
+
+private function syncPrestasiProfil(int $idSiswa): void
+{
+    $siswa = Siswa::with('profil')
+        ->where('id_siswa', $idSiswa)
+        ->first();
+
+    if (!$siswa || !$siswa->id_ortu) {
+        return;
+    }
+
+    ProfilSiswa::updateOrCreate(
+        ['id_siswa' => $siswa->id_siswa],
+        [
+            'id_ortu' => $siswa->id_ortu,
+            'foto' => $siswa->profil?->foto ?? $siswa->pas_photo_3x4,
+            'prestasi' => $this->buildPrestasiProfil($siswa->id_siswa),
+        ]
+    );
+}
+
+private function buildPrestasiProfil(int $idSiswa): ?string
+{
+    $prestasi = Pencapaian::where('id_siswa', $idSiswa)
+        ->orderBy('tanggal_diberikan', 'desc')
+        ->orderBy('id_pencapaian', 'desc')
+        ->pluck('nama_prestasi')
+        ->filter()
+        ->implode(', ');
+
+    return $prestasi !== '' ? substr($prestasi, 0, 255) : null;
+}
+
+private function formatProfilSiswa(Siswa $siswa): array
+{
+    $profil = $siswa->profil;
+
+    return [
+        'id_siswa' => $siswa->id_siswa,
+        'nama_siswa' => $siswa->nama_siswa,
+        'nama_ayah' => $siswa->nama_ayah,
+        'nama_ibu' => $siswa->nama_ibu,
+        'umur' => $siswa->umur,
+        'kategori_umur' => 'U-' . $siswa->umur,
+        'status' => $siswa->status,
+        'id_ortu' => $siswa->id_ortu,
+        'profil' => [
+            'nik' => $profil->nik ?? null,
+            'no_kk' => $profil->no_kk ?? null,
+            'nisn' => $profil->nisn ?? null,
+            'tempat_lahir' => $profil->tempat_lahir ?? null,
+            'tanggal_lahir' => $profil->tanggal_lahir ?? null,
+            'alamat' => $profil->alamat ?? null,
+            'foto' => $profil->foto ?? $siswa->pas_photo_3x4,
+            'pas_photo_3x4' => $siswa->pas_photo_3x4,
+            'tinggi_badan' => $profil->tinggi_badan ?? null,
+            'berat_badan' => $profil->berat_badan ?? null,
+            'prestasi' => $profil->prestasi ?? $this->buildPrestasiProfil($siswa->id_siswa),
+        ],
+        'total_prestasi' => $siswa->pencapaian->count(),
+        'prestasi' => $siswa->pencapaian
+            ->sortByDesc('tanggal_diberikan')
+            ->values()
+            ->map(function ($item) {
+                return [
+                    'id_pencapaian' => $item->id_pencapaian,
+                    'id_badge' => $item->id_badge,
+                    'nama_prestasi' => $item->nama_prestasi ?? $item->badge->nama_badge ?? null,
+                    'deskripsi' => $item->badge->deskripsi ?? null,
+                    'icon_badge' => $item->badge->icon_badge ?? null,
+                    'tanggal_diberikan' => $item->tanggal_diberikan,
+                ];
+            })
+            ->values(),
+    ];
+}
+
 private function extractUmurFromKategori(?string $kategoriUmur): ?int
 {
     if (!$kategoriUmur) {
@@ -1641,12 +1801,3 @@ private function extractUmurFromKategori(?string $kategoriUmur): ?int
 
 
 }
-    $admin = Admin::where('user_id', auth()->id())->first();
-
-    if (!$admin) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Data admin tidak ditemukan'
-        ], 404);
-    }
-
