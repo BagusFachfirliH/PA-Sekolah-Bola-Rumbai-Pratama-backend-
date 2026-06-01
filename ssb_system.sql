@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 14, 2026 at 03:55 PM
+-- Generation Time: Jun 01, 2026 at 11:58 AM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -172,7 +172,8 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (3, '2019_08_19_000000_create_failed_jobs_table', 1),
 (4, '2019_12_14_000001_create_personal_access_tokens_table', 1),
 (5, '2026_04_30_174307_add_group_id_to_promosi_table', 2),
-(6, '2026_05_03_175552_add_verification_token_to_users_table', 3);
+(6, '2026_05_03_175552_add_verification_token_to_users_table', 3),
+(7, '2026_06_01_000001_add_identity_fields_to_profil_siswa_table', 4);
 
 -- --------------------------------------------------------
 
@@ -251,7 +252,7 @@ INSERT INTO `orang_tua` (`id_ortu`, `nama_ortu`, `email`, `password`, `no_hp`, `
 (10, 'Fakrul', 'fakrul@gmail.com', '$2y$10$C9oh9I4C.jGImA2KJlr3R.XcgUXY0AEkV.uU1t6YO8cpj67ek95Wm', '0085671295', 16),
 (11, 'Suhatri', 'Suhartissb@gmail.com', '$2y$10$IjD/AYFCiuVPlFuz5kFH/.ZB5R1ofbN7pkbBB2AdiIV7oCGklEyFW', '089145607090', 31),
 (12, 'Zulyfitriani', 'Zulyfitrianissb@gmail.com', '$2y$10$MkVDlC852V7xSyJmIh1X2eDIcp3v60zEIWvXITLkqyLrbJX1EYDeC', '08963929922', 32),
-(37, 'Edison H', 'bagusffhx@gmail.com', '$2y$10$4EdfoTtCSCOFzy1.WXniQu3ww9OLPSzpY4PSKmy1oksiJvtTv1cxi', '082387469365', 57);
+(38, 'Edison H', 'bagusffhx@gmail.com', '$2y$10$ZVWm1QGbxLbHwkYpLGjjDub1Gv6htK3Y0o8igOnvo.oGGaXH1rb9K', '082387469365', 58);
 
 -- --------------------------------------------------------
 
@@ -317,7 +318,8 @@ CREATE TABLE `pembayaran` (
 INSERT INTO `pembayaran` (`id_pembayaran`, `id_siswa`, `periode`, `jumlah`, `tanggal_bayar`, `status`, `jenis`) VALUES
 (3, 6, '2026', 200000.00, '2026-03-11', 'Belum', 'Pendaftaran'),
 (5, 8, '2026', 280000.00, '2026-03-11', 'Belum', 'Pendaftaran'),
-(7, 11, '2026', 280000.00, '2026-04-14', 'Lunas', 'Pendaftaran');
+(7, 11, '2026', 280000.00, '2026-04-14', 'Lunas', 'Pendaftaran'),
+(12, 17, '2026', 280000.00, NULL, 'Belum', 'Pendaftaran');
 
 -- --------------------------------------------------------
 
@@ -339,7 +341,8 @@ CREATE TABLE `pencapaian` (
 
 INSERT INTO `pencapaian` (`id_pencapaian`, `id_siswa`, `id_badge`, `nama_prestasi`, `tanggal_diberikan`) VALUES
 (1, 9, NULL, 'Juara Turnamen Sepak Bola Antar Kota', '2026-05-01'),
-(2, 11, NULL, 'Juara Turnamen Sepak Bola Antar Kota', '2026-05-01');
+(2, 11, NULL, 'Juara Turnamen Sepak Bola Antar Kota', '2026-05-01'),
+(4, 17, NULL, 'Juara Turnamen Sepak Bola Antar Sekolah', '2026-05-01');
 
 -- --------------------------------------------------------
 
@@ -370,7 +373,8 @@ INSERT INTO `pendaftaran` (`id_pendaftaran`, `id_siswa`, `tanggal_daftar`, `stat
 (6, 6, '2026-03-07', 'Disetujui', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid'),
 (8, 8, '2026-03-11', 'Disetujui', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid'),
 (9, 9, '2026-04-12', 'Menunggu', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-(11, 11, '2026-04-14', 'Disetujui', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid');
+(11, 11, '2026-04-14', 'Disetujui', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid', 'valid'),
+(17, 17, '2026-05-21', 'Menunggu', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -430,7 +434,9 @@ INSERT INTO `personal_access_tokens` (`id`, `tokenable_type`, `tokenable_id`, `n
 (39, 'App\\Models\\User', 29, 'auth_token', '2fd67b352accd829bcaffa5b6148da9870d781c0e6a5f869d1f6927d9a3268d1', '[\"*\"]', '2026-05-04 12:08:18', NULL, '2026-05-04 11:35:34', '2026-05-04 12:08:18'),
 (40, 'App\\Models\\User', 55, 'auth_token', 'b016ca1d8c754faf5b8159f4c12f7ad818b588e158ec6a0ed5954a8908c03102', '[\"*\"]', NULL, NULL, '2026-05-08 03:47:00', '2026-05-08 03:47:00'),
 (47, 'App\\Models\\User', 56, 'auth_token', '8d6c5ac868cc805723866ba81eb67d93f6a9d7a97c3b3e48edb5d806aa2f9812', '[\"*\"]', '2026-05-08 04:51:51', NULL, '2026-05-08 04:42:53', '2026-05-08 04:51:51'),
-(49, 'App\\Models\\User', 7, 'auth_token', '634dcaac41884a2ff5b3111ace10e87b63fdf5d58cee094e7435a432d3ac5777', '[\"*\"]', NULL, NULL, '2026-05-14 06:10:35', '2026-05-14 06:10:35');
+(53, 'App\\Models\\User', 57, 'auth_token', '3f686ad68e586ec8f6f39878ea54ddfe89a8f95f7654a3c9da5acecf0243410f', '[\"*\"]', NULL, NULL, '2026-05-20 23:41:37', '2026-05-20 23:41:37'),
+(57, 'App\\Models\\User', 58, 'auth_token', '4504ec917542fc1d387ced187e2bcfd5b48e05d7536ffa632d8cfbe3ad979fb1', '[\"*\"]', '2026-06-01 02:00:50', NULL, '2026-06-01 01:57:07', '2026-06-01 02:00:50'),
+(58, 'App\\Models\\User', 7, 'auth_token', '5ff984b85482cf891677d126badcf3c2d3697d0c448a4b7084896bea54cde687', '[\"*\"]', '2026-06-01 02:17:07', NULL, '2026-06-01 02:16:23', '2026-06-01 02:17:07');
 
 -- --------------------------------------------------------
 
@@ -465,12 +471,26 @@ INSERT INTO `presensi` (`id_presensi`, `id_siswa`, `id_jadwal`, `status_kehadira
 CREATE TABLE `profil_siswa` (
   `id_siswa` int(11) NOT NULL,
   `id_ortu` int(11) NOT NULL,
+  `nik` varchar(30) DEFAULT NULL,
+  `no_kk` varchar(30) DEFAULT NULL,
+  `nisn` varchar(30) DEFAULT NULL,
+  `tempat_lahir` varchar(100) DEFAULT NULL,
+  `tanggal_lahir` date DEFAULT NULL,
   `alamat` varchar(255) DEFAULT NULL,
   `foto` varchar(255) DEFAULT NULL,
   `tinggi_badan` int(11) DEFAULT NULL,
   `berat_badan` int(11) DEFAULT NULL,
   `prestasi` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `profil_siswa`
+--
+
+INSERT INTO `profil_siswa` (`id_siswa`, `id_ortu`, `nik`, `no_kk`, `nisn`, `tempat_lahir`, `tanggal_lahir`, `alamat`, `foto`, `tinggi_badan`, `berat_badan`, `prestasi`) VALUES
+(9, 11, NULL, NULL, NULL, NULL, NULL, NULL, 'foto/44RxOP51GZYBabry2K8VEiLt8Nrn7qjggiHXLoOc.png', NULL, NULL, 'Juara Turnamen Sepak Bola Antar Kota'),
+(11, 12, NULL, NULL, NULL, NULL, NULL, NULL, 'EIMPXdLxZ1dwLbEaAHnHQLDpnU9MVEXCoedbUvCo.png', NULL, NULL, 'Juara Turnamen Sepak Bola Antar Kota'),
+(17, 38, '3201010101010001', '3201010101010000', '1234567890', 'Bandung', '2012-05-14', 'Jl. Melati No. 10', 'KS83EHEeSdLZN3lDZhzogqa7zNhJRiaCYFea151m.png', 150, 45, 'Juara Turnamen Sepak Bola Antar Sekolah');
 
 -- --------------------------------------------------------
 
@@ -557,7 +577,8 @@ INSERT INTO `siswa` (`id_siswa`, `nama_siswa`, `nama_ibu`, `nama_ayah`, `umur`, 
 (6, 'Zaky Fahreza', 'Nurisman', 'Fakrul', 10, 10, 16, '29xVlNjCKDDMhPmzgKC0J0JNJvYH0ZbLcLfIXkSI.png', 'KC8QKueWfVhczzwHHlQ82fRAIecIPYR2miAGFBxw.png', '2LQvoFRvxJcHjd36eghLNPmRL8AfsLmvtzNEymnw.png', 'UK1EfmNsepIxvPSfWPfvUoaY5zAOv7KlHtUyDYy2.png', 'Inactive'),
 (8, 'Rinov Ramadhans', 'Nurisman', 'Fakrul', 10, 10, 16, 'T2jDZHOKqLLH2ZS5ComDIXxOzmE7dYfnB4I7LhKM.png', '4B0Yyjd4CAESPUNA7ZD6BbLNmHzBLurep7IKpTok.png', 'ok4qpizm9OtdHWovWq9CmLwRc23QV6fXXEmnFJ7t.png', 's2E7KcQcjIWIxyonmYdDj29gB9GEpwBbiS0VvqUM.png', 'Inactive'),
 (9, 'Ibrahim Mufid Zaki', 'Suharti', 'Suharti', 16, 11, 31, 'akta/NxmUhMMUnEto6JyJ2USVLCPM9CpcfA2PqqGhpVTo.png', 'kk/HdKlHWJZP2Vh2FDPXMAzaWl7XjqsEsLsuGdaEVhh.png', 'rapor/kd87yeIq2FxpQxUc3lrGg5wHf9b8cqHvwdvOy5eT.png', 'foto/44RxOP51GZYBabry2K8VEiLt8Nrn7qjggiHXLoOc.png', 'Inactive'),
-(11, 'Muhammad Lionell Shazwa', 'Zulyfitriani', 'Zulyfitriani', 16, 12, 32, 'qMe0N8YfQuaKrSwwjAAj9i1JNIudxu0uokXrnMTV.png', 'bO1JBmCOiMP9l0KgQn2GRSFVaCyuJ5NMT1MvqV9I.png', 'D96rDLz10aIMhIrquImkNQyQG0iWTsRF8XMS429M.png', 'EIMPXdLxZ1dwLbEaAHnHQLDpnU9MVEXCoedbUvCo.png', 'Active');
+(11, 'Muhammad Lionell Shazwa', 'Zulyfitriani', 'Zulyfitriani', 16, 12, 32, 'qMe0N8YfQuaKrSwwjAAj9i1JNIudxu0uokXrnMTV.png', 'bO1JBmCOiMP9l0KgQn2GRSFVaCyuJ5NMT1MvqV9I.png', 'D96rDLz10aIMhIrquImkNQyQG0iWTsRF8XMS429M.png', 'EIMPXdLxZ1dwLbEaAHnHQLDpnU9MVEXCoedbUvCo.png', 'Active'),
+(17, 'Bagus Fachfirli Hulu', 'Heliyarti', 'Edison Hulu', 12, 38, 58, 'CYOPf4jHiRA5L6GqJ7PsXsjbVoahciOelS220BPX.png', 'NvhN7Rp0VxYF7krarwmNi25TbL2nTZRmmz6KaHA8.png', 'HYSzOFbE1UH5eacOSwPQURrmO9jY3mHUpsiSVwLw.png', 'KS83EHEeSdLZN3lDZhzogqa7zNhJRiaCYFea151m.png', 'Inactive');
 
 -- --------------------------------------------------------
 
@@ -590,7 +611,7 @@ INSERT INTO `users` (`id`, `name`, `email`, `email_verified_at`, `verification_t
 (30, 'Zulfahmi', 'zulfahmi@gmail.com', NULL, NULL, '$2y$10$t7NyR/p1xi/lr5XQpkEqIO4RVeIqyzy1f8pSeLj5sXD41yJJ/M8hi', NULL, '2026-04-09 12:32:22', '2026-04-09 12:32:22', 'pelatih'),
 (31, 'Suhatri', 'Suhartissb@gmail.com', NULL, NULL, '$2y$10$MbFCXpptxPdAdiKwn3t2Muhh65yly2hmpxWHETIYtPCYEbBY9hlIq', NULL, '2026-04-11 09:06:13', '2026-05-03 06:50:12', 'orang_tua'),
 (32, 'Zulyfitriani', 'Zulyfitrianissb@gmail.com', NULL, NULL, '$2y$10$d9tE9CkvZ5vNeHOJkU5g0e/1IFfjryBlyxyuWZOPeUKiqiDN7IKrK', NULL, '2026-04-13 16:36:47', '2026-04-13 16:36:47', 'orang_tua'),
-(57, 'Edison H', 'bagusffhx@gmail.com', NULL, 'oZJvShZEIl5WrDABDdvclL8keznlrGJmFulmvGw0xFJJKWXvi5ORYJwDSZgmpWp0', '$2y$10$SZhEiCxuX2.HIfaXitAqsOBHfupwPM30N3Vv31v.6d/iHtH9Vs4Ci', NULL, '2026-05-14 06:29:37', '2026-05-14 06:29:37', 'orang_tua');
+(58, 'Edison H', 'bagusffhx@gmail.com', '2026-05-21 00:38:33', NULL, '$2y$10$boLYAc8wtZ0DdCazYgAnaulBT.6eiz08HUHSyb5/mc1NSr.FfzQPS', NULL, '2026-05-21 00:37:13', '2026-05-21 00:38:33', 'orang_tua');
 
 --
 -- Indexes for dumped tables
@@ -791,7 +812,7 @@ ALTER TABLE `admin`
 -- AUTO_INCREMENT for table `bukti_pembayaran`
 --
 ALTER TABLE `bukti_pembayaran`
-  MODIFY `id_bukti_pembayaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id_bukti_pembayaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `catatan_pelatih`
@@ -821,7 +842,7 @@ ALTER TABLE `jadwal_siswa`
 -- AUTO_INCREMENT for table `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `notifikasi`
@@ -839,7 +860,7 @@ ALTER TABLE `notifikasi_terkirim`
 -- AUTO_INCREMENT for table `orang_tua`
 --
 ALTER TABLE `orang_tua`
-  MODIFY `id_ortu` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id_ortu` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=39;
 
 --
 -- AUTO_INCREMENT for table `pelatih`
@@ -851,25 +872,25 @@ ALTER TABLE `pelatih`
 -- AUTO_INCREMENT for table `pembayaran`
 --
 ALTER TABLE `pembayaran`
-  MODIFY `id_pembayaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id_pembayaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `pencapaian`
 --
 ALTER TABLE `pencapaian`
-  MODIFY `id_pencapaian` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id_pencapaian` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `pendaftaran`
 --
 ALTER TABLE `pendaftaran`
-  MODIFY `id_pendaftaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id_pendaftaran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `personal_access_tokens`
 --
 ALTER TABLE `personal_access_tokens`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=50;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
 
 --
 -- AUTO_INCREMENT for table `presensi`
@@ -899,13 +920,13 @@ ALTER TABLE `riwayat_promosi`
 -- AUTO_INCREMENT for table `siswa`
 --
 ALTER TABLE `siswa`
-  MODIFY `id_siswa` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id_siswa` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=58;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=59;
 
 --
 -- Constraints for dumped tables
