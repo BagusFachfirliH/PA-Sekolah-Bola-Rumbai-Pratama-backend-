@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -745,16 +744,12 @@ public function Data_Pelatih(Request $request)
 {
     $pelatih = Pelatih::with('user');
 
-    // =========================
-    // FILTER NAMA PELATIH
-    // =========================
+   
     if ($request->filled('nama_pelatih')) {
         $pelatih->where('nama_pelatih', 'like', '%' . $request->nama_pelatih . '%');
     }
 
-    // =========================
-    // FILTER EMAIL (dari tabel user)
-    // =========================
+ 
     if ($request->filled('email')) {
         $pelatih->whereHas('user', function ($q) use ($request) {
             $q->where('email', 'like', '%' . $request->email . '%');
@@ -852,9 +847,7 @@ public function Update_Pelatih(Request $request, $id)
 {
     $pelatih = Pelatih::findOrFail($id);
 
-    // =========================
-    // VALIDASI
-    // =========================
+
     $request->validate([
         'nama' => 'required|string|max:100',
         'email' => 'required|email',
@@ -938,22 +931,21 @@ public function Jadwallatihan_Siswa(Request $request)
     ]);
 }
 
-public function JadwalperPelatih($id_pelatih)
+public function JadwalPerKategori($kategori)
 {
-    $jadwal = \App\Models\Jadwal_Latihan::with('siswa', 'pelatih')
-        ->where('id_pelatih', $id_pelatih)
-        ->get();
+    $umur = (int) preg_replace('/[^0-9]/', '', $kategori);
 
-    if ($jadwal->isEmpty()) {
-        return response()->json([
-            'status' => false,
-            'message' => 'Jadwal pelatih tidak ditemukan'
-        ], 404);
-    }
+    $jadwal = Jadwal_Latihan::with([
+        'siswa' => function ($q) use ($umur) {
+            $q->where('umur', $umur);
+        },
+        'pelatih'
+    ])
+    ->where('kategori_umur', strtolower($kategori))
+    ->get();
 
     return response()->json([
         'status' => true,
-        'total' => $jadwal->count(),
         'data' => $jadwal
     ]);
 }
@@ -965,20 +957,65 @@ public function Tambah_Jadwal(Request $request)
         'jam_mulai' => 'required',
         'jam_selesai' => 'required',
         'lokasi' => 'required',
-        'id_pelatih' => 'required|exists:pelatih,id_pelatih',
-        'id_siswa' => 'required|array',
+
+        'mode' => 'required|in:kategori,all,siswa',
+
+        // kategori wajib kalau mode kategori
+        'kategori' => 'required_if:mode,kategori',
+
+        // siswa wajib kalau mode siswa
+        'id_siswa' => 'required_if:mode,siswa|array',
         'id_siswa.*' => 'exists:siswa,id_siswa',
     ]);
 
+    // 🔥 CREATE JADWAL
     $jadwal = \App\Models\Jadwal_Latihan::create([
         'tanggal' => $request->tanggal,
         'jam_mulai' => $request->jam_mulai,
         'jam_selesai' => $request->jam_selesai,
         'lokasi' => $request->lokasi,
-        'id_pelatih' => $request->id_pelatih, // ðŸ‘ˆ TAMBAHAN
+        'id_pelatih' => $request->id_pelatih,
+        'kategori_umur' => $request->mode === 'all'
+            ? 'all'
+            : strtoupper($request->kategori ?? 'manual'),
     ]);
 
-    $jadwal->siswa()->attach($request->id_siswa);
+    // 🔥 MODE ALL
+    if ($request->mode === 'all') {
+        $allSiswa = \App\Models\Siswa::pluck('id_siswa');
+        $jadwal->siswa()->attach($allSiswa);
+    }
+
+    // 🔥 MODE KATEGORI (AUTO RANGE UMUR)
+    if ($request->mode === 'kategori') {
+
+        $umur = $this->extractUmurFromKategori($jadwal->kategori_umur);
+
+        if (!$umur) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Kategori umur tidak valid'
+            ], 400);
+        }
+
+        $min = $umur - 1;
+        $max = $umur;
+
+        $siswa = \App\Models\Siswa::whereBetween('umur', [$min, $max])
+            ->pluck('id_siswa');
+
+        $jadwal->siswa()->attach($siswa);
+    }
+
+    // 🔥 MODE PER SISWA (MANUAL PILIH)
+    if ($request->mode === 'siswa') {
+
+        $jadwal->update([
+            'kategori_umur' => 'manual'
+        ]);
+
+        $jadwal->siswa()->attach($request->id_siswa);
+    }
 
     return response()->json([
         'status' => true,
@@ -989,13 +1026,19 @@ public function Tambah_Jadwal(Request $request)
 
 public function Update_Jadwal(Request $request, $id)
 {
+
+
     $request->validate([
         'tanggal' => 'required|date',
         'jam_mulai' => 'required',
         'jam_selesai' => 'required',
         'lokasi' => 'required',
-        'id_pelatih' => 'required|exists:pelatih,id_pelatih',
-        'id_siswa' => 'required|array',
+
+        'mode' => 'required|in:all,kategori,siswa',
+
+        'kategori' => 'required_if:mode,kategori',
+
+        'id_siswa' => 'required_if:mode,siswa|array',
         'id_siswa.*' => 'exists:siswa,id_siswa',
     ]);
 
@@ -1006,10 +1049,54 @@ public function Update_Jadwal(Request $request, $id)
         'jam_mulai' => $request->jam_mulai,
         'jam_selesai' => $request->jam_selesai,
         'lokasi' => $request->lokasi,
-        'id_pelatih' => $request->id_pelatih, // ðŸ‘ˆ TAMBAHAN
+        'id_pelatih' => $request->id_pelatih,
+
+        'kategori_umur' => $request->mode === 'all'
+            ? 'all'
+            : strtoupper($request->kategori ?? 'manual'),
     ]);
 
-    $jadwal->siswa()->sync($request->id_siswa);
+    // Hapus relasi siswa lama
+    $jadwal->siswa()->detach();
+
+    // MODE ALL
+    if ($request->mode === 'all') {
+
+        $allSiswa = \App\Models\Siswa::pluck('id_siswa');
+
+        $jadwal->siswa()->attach($allSiswa);
+    }
+
+    // MODE KATEGORI
+    if ($request->mode === 'kategori') {
+
+        $umur = $this->extractUmurFromKategori($request->kategori);
+
+        if (!$umur) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Kategori umur tidak valid'
+            ], 400);
+        }
+
+        $min = $umur - 1;
+        $max = $umur;
+
+        $siswa = \App\Models\Siswa::whereBetween('umur', [$min, $max])
+            ->pluck('id_siswa');
+
+        $jadwal->siswa()->attach($siswa);
+    }
+
+    // MODE SISWA
+    if ($request->mode === 'siswa') {
+
+        $jadwal->update([
+            'kategori_umur' => 'MANUAL'
+        ]);
+
+        $jadwal->siswa()->attach($request->id_siswa);
+    }
 
     return response()->json([
         'status' => true,
