@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Models\Pendaftaran_Siswa;
+use App\Services\SiswaPaymentStatusService;
 use Carbon\Carbon;
 
 
@@ -46,7 +47,7 @@ public function siswaDashboard(Request $request)
     }
 
     // 🔎 AMBIL SISWA BERDASARKAN ANAK YANG DIPILIH DI setAnak
-    $selectedChildId = $request->id_siswa ?? session('id_siswa');
+    $selectedChildId = $request->route('id_siswa') ?? $request->id_siswa ?? session('id_siswa');
     $orangTua = OrangTua::where('user_id', $user->id)->first();
 
     if (!$orangTua) {
@@ -75,11 +76,20 @@ public function siswaDashboard(Request $request)
 
     session(['id_siswa' => $siswa->id_siswa]);
 
+    $paymentStatusService = app(SiswaPaymentStatusService::class);
+    $siswa = $paymentStatusService->syncMonthlyStatus($siswa->loadMissing('pendaftaran'));
+
     // 💰 PEMBAYARAN
     $pembayaranBelum = $siswa->pembayaran()
         ->whereIn('status', ['Belum', 'Lunas'])
-        ->whereIn('jenis', ['Pendaftaran', 'Bulanan'])
+        ->whereIn('jenis', ['Pendaftaran', 'Bulanan', 'Harian'])
         ->get();
+
+    $periodeBulanIni = now()->format('Y-m');
+    $periodeBulanSebelumnya = now()->subMonthNoOverflow()->format('Y-m');
+
+    $pembayaranBulanan = $paymentStatusService->monthlySummary($siswa, $periodeBulanIni);
+    $pembayaranBulanSebelumnya = $paymentStatusService->monthlySummary($siswa, $periodeBulanSebelumnya);
 
     // 📊 KEHADIRAN (TAHUN INI)
     $presensi = $siswa->presensi()
@@ -154,6 +164,8 @@ public function siswaDashboard(Request $request)
             'status_siswa' => $siswa->status,
 
             'pembayaranBelum' => $pembayaranBelum,
+            'pembayaran_bulanan' => $pembayaranBulanan,
+            'pembayaran_bulan_sebelumnya' => $pembayaranBulanSebelumnya,
             'kehadiran' => $kehadiran,
             'jadwal' => $jadwal,
             'performa' => $performa,
