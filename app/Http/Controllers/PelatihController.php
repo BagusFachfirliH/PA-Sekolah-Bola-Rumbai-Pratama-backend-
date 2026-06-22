@@ -18,27 +18,23 @@ use Illuminate\Support\Facades\Storage;
 
 class PelatihController extends Controller
 {
-  public function Kehadiran(Request $request)
+ public function Kehadiran(Request $request)
 {
-    $jadwalQuery = Jadwal_Latihan::with(['siswa' => function ($q) use ($request) {
+    $jadwal = Jadwal_Latihan::with(['siswa' => function ($q) use ($request) {
 
-        // FILTER UMUR (U-12 → 12)
         if ($request->filled('kategori_umur')) {
             if (preg_match('/U(\d+)/', strtoupper($request->kategori_umur), $match)) {
                 $q->where('umur', (int) $match[1]);
             }
         }
 
-    }]);
-
-    // ambil jadwal terbaru
-    $jadwal = $jadwalQuery
-        ->orderBy('id_jadwal', 'desc')
-        ->first();
+    }])
+    ->orderBy('id_jadwal', 'desc')
+    ->paginate(5);
 
     return response()->json([
         'status' => true,
-        'jadwal' => $jadwal
+        'data' => $jadwal
     ]);
 }
 
@@ -55,23 +51,46 @@ class PelatihController extends Controller
 public function Input_Presensi(Request $request)
 {
     $request->validate([
-        'id_jadwal' => 'required',
+        'id_jadwal' => 'required|exists:jadwal_latihan,id_jadwal',
+        'id_pelatih' => 'required|exists:pelatih,id_pelatih',
         'data' => 'required|array',
         'data.*.id_siswa' => 'required|exists:siswa,id_siswa',
         'data.*.status' => 'required|in:Hadir,Sakit,Izin'
     ]);
 
-    foreach ($request->data as $item) {
-        Presensi::updateOrCreate(
-            [
-                'id_siswa' => $item['id_siswa'],
-                'id_jadwal' => $request->id_jadwal
-            ],
-            [
-                'status_kehadiran' => $item['status']
-            ]
-        );
+    $jadwal = Jadwal_Latihan::where('id_jadwal', $request->id_jadwal)
+        ->first();
+
+    if (!$jadwal) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Jadwal tidak ditemukan'
+        ], 404);
     }
+
+    if (Presensi::where('id_jadwal', $request->id_jadwal)->exists()) {
+        Presensi::where('id_jadwal', $request->id_jadwal)
+            ->whereNull('id_pelatih')
+            ->update(['id_pelatih' => $request->id_pelatih]);
+
+        return response()->json([
+            'status' => false,
+            'message' => 'Presensi untuk jadwal ini sudah pernah diinput'
+        ], 422);
+    }
+
+   foreach ($request->data as $item) {
+    Presensi::updateOrCreate(
+        [
+            'id_siswa' => $item['id_siswa'],
+            'id_jadwal' => $request->id_jadwal
+        ],
+        [
+            'id_pelatih' => $request->id_pelatih,
+            'status_kehadiran' => $item['status']
+        ]
+    );
+}
 
     return response()->json([
         'status' => true,
@@ -83,101 +102,122 @@ public function Input_Presensi(Request $request)
 
 public function Rekap_Absensi(Request $request)
 {
-    $bulan = $request->bulan ?? now()->month;
-    $tahun = $request->tahun ?? now()->year;
+    $bulan  = $request->query('bulan');
+    $tahun  = $request->query('tahun') ?? now()->year;
+    $jadwal = $request->query('id_jadwal');
 
-    $siswa = Siswa::all();
+    // 🔥 PAGINATION DI SISWA (INI KUNCI UTAMA)
+    $siswa = Siswa::paginate(10);
 
-    $rekap = $siswa->map(function ($s) use ($bulan, $tahun) {
+    // transform data per siswa
+    $rekap = $siswa->getCollection()->map(function ($s) use ($bulan, $tahun, $jadwal) {
 
-        $presensi = $s->presensi()
-            ->whereMonth('created_at', $bulan)
-            ->whereYear('created_at', $tahun)
-            ->get();
+        $presensiQuery = $s->presensi()
+            ->whereYear('created_at', $tahun);
+
+        // filter bulan
+        if (!empty($bulan)) {
+            $presensiQuery->whereMonth('created_at', $bulan);
+        }
+
+        // filter jadwal
+        if (!empty($jadwal) && $jadwal != 'Semua') {
+            $presensiQuery->where('id_jadwal', $jadwal);
+        }
+
+        $presensi = $presensiQuery->get();
 
         $total = $presensi->count();
 
-        $hadir = $presensi->where('status_kehadiran', 'Hadir')->count();
-        $sakit = $presensi->where('status_kehadiran', 'Sakit')->count();
-        $izin  = $presensi->where('status_kehadiran', 'Izin')->count();
-
         return [
-            'id_siswa' => $s->id_siswa,
+            'id_siswa'   => $s->id_siswa,
             'nama_siswa' => $s->nama_siswa ?? '-',
+            'umur'       => 'U-' . $s->umur,
 
-            // U- format
-            'umur' => 'U-' . $s->umur,
+            'hadir' => $total ? round($presensi->where('status_kehadiran','Hadir')->count() / $total * 100, 1) : 0,
+            'sakit' => $total ? round($presensi->where('status_kehadiran','Sakit')->count() / $total * 100, 1) : 0,
+            'izin'  => $total ? round($presensi->where('status_kehadiran','Izin')->count() / $total * 100, 1) : 0,
 
-            'hadir' => $total ? round(($hadir / $total) * 100, 1) : 0,
-            'sakit' => $total ? round(($sakit / $total) * 100, 1) : 0,
-            'izin'  => $total ? round(($izin / $total) * 100, 1) : 0,
-
-            'total' => $total,
+            'total' => $total
         ];
-            });
+    });
 
     return response()->json([
-        'status' => true,
-        'message' => 'Rekap semua siswa per bulan berhasil',
-        'bulan' => $bulan,
-        'tahun' => $tahun,
-        'data' => $rekap
+        'status'  => true,
+        'message' => 'Rekap absensi berhasil',
+        'bulan'   => $bulan ?? 'all',
+        'tahun'   => $tahun,
+        'jadwal'  => $jadwal ?? 'Semua',
+
+        // 🔥 DATA HASIL PAGINATION
+        'data' => $rekap,
+
+        // 🔥 META PAGINATION
+        'pagination' => [
+            'current_page' => $siswa->currentPage(),
+            'last_page'    => $siswa->lastPage(),
+            'per_page'     => $siswa->perPage(),
+            'total'        => $siswa->total(),
+        ]
     ]);
 }
 
-public function Performa_Siswa(Request $request, $id)
+
+public function performa_siswa(Request $request)
 {
-    // ambil user login
-    $user = auth('sanctum')->user();
+    // ambil dropdown kategori umur dari jadwal_latihan
+    $kategoriUmur = Jadwal_Latihan::select('kategori_umur')
+        ->distinct()
+        ->get();
 
-    // ambil pelatih berdasarkan user login
-    $pelatih = Pelatih::where('user_id', $user->id)->first();
+    $query = Jadwal_Latihan::with([
+        'siswa.kehadiran',
+        'siswa.performa' // penting: tanggal dari sini
+    ])
+    ->whereDoesntHave('performa');
 
-    if (!$pelatih) {
-        return response()->json([
-            'status' => false,
-            'message' => 'Data pelatih tidak ditemukan'
-        ], 404);
+    // filter kategori umur
+    if ($request->filled('kategori_umur')) {
+        if (preg_match('/U(\d+)/', strtoupper($request->kategori_umur), $match)) {
+            $umur = (int) $match[1];
+
+            $query->whereHas('siswa', function ($q) use ($umur) {
+                $q->where('umur', $umur);
+            });
+        }
     }
 
-    // 🔥 batasi akses hanya milik pelatih
-    $jadwal = Jadwal_Latihan::with('siswa')
-        ->where('id_jadwal', $id)
-        ->where('id_pelatih', $pelatih->id_pelatih)
-        ->first();
-
-    if (!$jadwal) {
-        return response()->json([
-            'status' => false,
-            'message' => 'Jadwal tidak ditemukan atau bukan milik pelatih'
-        ], 404);
+    // filter jadwal (jika dipilih)
+    if ($request->filled('id_jadwal')) {
+        $query->where('id_jadwal', $request->id_jadwal);
     }
+
+    $jadwal = $query->orderBy('id_jadwal', 'desc')
+        ->paginate(5);
 
     return response()->json([
         'status' => true,
-        'jadwal' => $jadwal,
+        'kategori_umur' => $kategoriUmur,
+        'data' => $jadwal
     ]);
 }
 
 
 public function Input_Performa_Siswa(Request $request, $id)
 {
-    $user = auth('sanctum')->user();
-
-    $pelatih = Pelatih::where('user_id', $user->id)->first();
-
-    if (!$pelatih) {
-        return response()->json([
-            'status' => false,
-            'message' => 'Pelatih tidak ditemukan'
-        ], 404);
-    }
-
+    $request->validate([
+        'id_pelatih' => 'required|exists:pelatih,id_pelatih',
+        'data' => 'required|array',
+        'data.*.id_siswa' => 'required|exists:siswa,id_siswa',
+        'data.*.dribbling' => 'required|numeric|min:0|max:100',
+        'data.*.passing' => 'required|numeric|min:0|max:100',
+        'data.*.shooting' => 'required|numeric|min:0|max:100',
+        'tanggal_penilaian' => 'nullable|date',
+    ]);
 
     // 🔥 WAJIB: load relasi siswa
     $jadwal = Jadwal_Latihan::with('siswa')
         ->where('id_jadwal', $id)
-        ->where('id_pelatih', $pelatih->id_pelatih)
         ->first();
 
     if (!$jadwal) {
@@ -187,14 +227,22 @@ public function Input_Performa_Siswa(Request $request, $id)
         ], 404);
     }
 
-    if (!$request->has('data')) {
+    $performaSudahAda = Performa_Siswa::where('id_jadwal', $jadwal->id_jadwal);
+
+    if ($performaSudahAda->exists()) {
+        Performa_Siswa::where('id_jadwal', $jadwal->id_jadwal)
+            ->whereNull('id_pelatih')
+            ->update(['id_pelatih' => $request->id_pelatih]);
+
         return response()->json([
             'status' => false,
-            'message' => 'Masukan Data tidak boleh kosong'
-        ], 400);
+            'message' => 'Performa untuk jadwal ini sudah pernah diinput'
+        ], 422);
     }
 
-    $tanggal = now();
+    $tanggal = $request->filled('tanggal_penilaian')
+        ? Carbon::parse($request->tanggal_penilaian)->toDateString()
+        : now()->toDateString();
 
     foreach ($request->data as $item) {
 
@@ -205,12 +253,12 @@ public function Input_Performa_Siswa(Request $request, $id)
             continue;
         }
 
-        Performa_Siswa::create([
+        Performa_Siswa::updateOrCreate([
+            'id_jadwal' => $jadwal->id_jadwal,
             'id_siswa' => $item['id_siswa'],
+        ], [
+            'id_pelatih' => $request->id_pelatih,
             'tanggal_penilaian' => $tanggal,
-            'bulan' => $tanggal->format('m'),
-            'tahun' => $tanggal->format('Y'),
-            'kategori' => 'U-' . $siswa->umur,
             'dribbling' => $item['dribbling'],
             'passing' => $item['passing'],
             'shooting' => $item['shooting'],
@@ -225,21 +273,19 @@ public function Input_Performa_Siswa(Request $request, $id)
 
 public function Update_Performa_Siswa(Request $request, $id_jadwal)
 {
-    $user = auth('sanctum')->user();
-
-    $pelatih = Pelatih::where('user_id', $user->id)->first();
-
-    if (!$pelatih) {
-        return response()->json([
-            'status' => false,
-            'message' => 'Data pelatih tidak ditemukan'
-        ], 404);
-    }
+    $request->validate([
+        'id_pelatih' => 'required|exists:pelatih,id_pelatih',
+        'data' => 'required|array',
+        'data.*.id_siswa' => 'required|exists:siswa,id_siswa',
+        'data.*.dribbling' => 'required|numeric|min:0|max:100',
+        'data.*.passing' => 'required|numeric|min:0|max:100',
+        'data.*.shooting' => 'required|numeric|min:0|max:100',
+        'tanggal_penilaian' => 'nullable|date',
+    ]);
 
     // ambil jadwal + siswa yang ikut jadwal itu
     $jadwal = Jadwal_Latihan::with('siswa')
         ->where('id_jadwal', $id_jadwal)
-        ->where('id_pelatih', $pelatih->id_pelatih)
         ->first();
 
     if (!$jadwal) {
@@ -248,6 +294,10 @@ public function Update_Performa_Siswa(Request $request, $id_jadwal)
             'message' => 'Jadwal tidak ditemukan'
         ], 404);
     }
+
+    $tanggal = $request->filled('tanggal_penilaian')
+        ? Carbon::parse($request->tanggal_penilaian)->toDateString()
+        : now()->toDateString();
 
     foreach ($request->data as $item) {
 
@@ -258,17 +308,20 @@ public function Update_Performa_Siswa(Request $request, $id_jadwal)
             continue; // skip kalau bukan siswa di jadwal ini
         }
 
-       Performa_Siswa::updateOrCreate(
-    [
-        'id_siswa' => $item['id_siswa'],
-    ],
-    [
-        'dribbling' => $item['dribbling'],
-        'passing' => $item['passing'],
-        'shooting' => $item['shooting'],
-    ]
-);
-    }
+        Performa_Siswa::updateOrCreate(
+            [
+                'id_jadwal' => $jadwal->id_jadwal,
+                'id_siswa' => $item['id_siswa'],
+            ],
+            [
+                'id_pelatih' => $request->id_pelatih,
+                'tanggal_penilaian' => $tanggal,
+                'dribbling' => $item['dribbling'],
+                'passing' => $item['passing'],
+                'shooting' => $item['shooting'],
+            ]
+        );
+      }
 
     return response()->json([
         'status' => true,
@@ -450,6 +503,7 @@ public function Store_Bukti_Pembayaran_Pelatih(Request $request)
     $validated = $request->validate([
         'id_siswa' => 'required|exists:siswa,id_siswa',
         'jenis' => 'required|in:Harian,Bulanan',
+        'jumlah' => 'required|numeric|min:1',
         'tanggal_bukti_bayar' => 'required|date',
         'bukti_bayar' => 'required|file|mimes:jpg,jpeg,png,pdf|max:4096',
     ]);
@@ -459,59 +513,38 @@ public function Store_Bukti_Pembayaran_Pelatih(Request $request)
     try {
         $siswa = Siswa::findOrFail($validated['id_siswa']);
         $tanggal = Carbon::parse($validated['tanggal_bukti_bayar']);
+
         $periode = $validated['jenis'] === 'Harian'
             ? $tanggal->format('Y-m-d')
             : $tanggal->format('Y-m');
 
-        $pembayaran = Pembayaran::firstOrCreate(
+        // 🔥 CEGAH DUPLIKAT PEMBAYARAN
+        $pembayaran = Pembayaran::updateOrCreate(
             [
                 'id_siswa' => $siswa->id_siswa,
                 'jenis' => $validated['jenis'],
                 'periode' => $periode,
             ],
             [
-                'jumlah' => 0,
+                'jumlah' => $validated['jumlah'],
                 'tanggal_bayar' => $tanggal->toDateString(),
-                'status' => 'Belum',
+                'status' => 'belum',
             ]
         );
 
-        if (!$pembayaran->tanggal_bayar) {
-            $pembayaran->update([
-                'tanggal_bayar' => $tanggal->toDateString(),
-            ]);
-        }
+        // 🔥 OPSIONAL: hapus bukti lama biar tidak numpuk
+        BuktiPembayaran::where('id_pembayaran', $pembayaran->id_pembayaran)->delete();
 
+        // upload file baru
         $filePath = $request->file('bukti_bayar')->store('bukti_pembayaran');
 
-        $bukti = BuktiPembayaran::where('id_pembayaran', $pembayaran->id_pembayaran)->first();
-
-        if ($bukti) {
-            if ($bukti->bukti_bayar && Storage::exists($bukti->bukti_bayar)) {
-                Storage::delete($bukti->bukti_bayar);
-            }
-
-            $bukti->update([
-                'id_siswa' => $siswa->id_siswa,
-                'periode' => $periode,
-                'tanggal_bukti_bayar' => $tanggal->toDateString(),
-                'status' => 'Menunggu validasi',
-                'bukti_bayar' => $filePath,
-            ]);
-        } else {
-            $bukti = BuktiPembayaran::create([
-                'id_pembayaran' => $pembayaran->id_pembayaran,
-                'id_siswa' => $siswa->id_siswa,
-                'periode' => $periode,
-                'tanggal_bukti_bayar' => $tanggal->toDateString(),
-                'status' => 'Menunggu validasi',
-                'bukti_bayar' => $filePath,
-            ]);
-        }
-
-        $pembayaran->update([
-            'tanggal_bayar' => $tanggal->toDateString(),
-            'status' => 'Belum',
+        $bukti = BuktiPembayaran::create([
+            'id_pembayaran' => $pembayaran->id_pembayaran,
+            'id_siswa' => $siswa->id_siswa,
+            'periode' => $periode,
+            'tanggal_bukti_bayar' => $tanggal->toDateString(),
+            'status' => 'Menunggu validasi',
+            'bukti_bayar' => $filePath,
         ]);
 
         DB::commit();
@@ -521,6 +554,7 @@ public function Store_Bukti_Pembayaran_Pelatih(Request $request)
             'message' => 'Bukti pembayaran berhasil diupload',
             'data' => $bukti->load(['siswa', 'pembayaran']),
         ], 201);
+
     } catch (\Throwable $e) {
         DB::rollBack();
 
@@ -614,6 +648,14 @@ public function Hapus_Bukti_Pembayaran_Pelatih($id)
         ], 404);
     }
 
+    // Validasi: bukti yang sudah diterima tidak boleh dihapus
+    if ($bukti->status === 'diterima') {
+        return response()->json([
+            'success' => false,
+            'message' => 'Bukti pembayaran yang sudah diterima tidak dapat dihapus',
+        ], 403);
+    }
+
     DB::beginTransaction();
 
     try {
@@ -625,7 +667,10 @@ public function Hapus_Bukti_Pembayaran_Pelatih($id)
         $bukti->delete();
 
         if ($pembayaran) {
-            $masihAdaBukti = BuktiPembayaran::where('id_pembayaran', $pembayaran->id_pembayaran)->exists();
+            $masihAdaBukti = BuktiPembayaran::where(
+                'id_pembayaran',
+                $pembayaran->id_pembayaran
+            )->exists();
 
             if (!$masihAdaBukti) {
                 $pembayaran->update([
