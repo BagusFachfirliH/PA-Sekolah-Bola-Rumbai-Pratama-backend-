@@ -107,10 +107,16 @@ public function profil()
     return $this->hasOne(ProfilSiswa::class, 'id_siswa', 'id_siswa');
 }
 
+public function kehadiran()
+{
+    return $this->hasMany(Presensi::class, 'id_siswa', 'id_siswa');
+}
+
 public function performa()
 {
-    return $this->hasMany(\App\Models\Performa_Siswa::class, 'id_siswa', 'id_siswa');
+    return $this->hasMany(Performa_Siswa::class, 'id_siswa', 'id_siswa');
 }
+
 
 
 }
